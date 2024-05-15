@@ -17,6 +17,9 @@ dependencies:
   sharp:
     specifier: ^0.32.5
     version: 0.32.6
+  starlight-image-zoom:
+    specifier: ^0.4.0
+    version: 0.4.0(@astrojs/starlight@0.22.3)
   typescript:
     specifier: ^5.4.5
     version: 5.4.5
@@ -4285,6 +4288,18 @@ packages:
 
   /sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
+    dev: false
+
+  /starlight-image-zoom@0.4.0(@astrojs/starlight@0.22.3):
+    resolution: {integrity: sha512-ATSW/X2QzG+XbxrGAIhzVgqGd08jLh443InNMHRijIeU+Y1aS4jZjs358yVNTlns8uLflz8VaI8/9PVVaYN6LQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@astrojs/starlight': '>=0.20.0'
+    dependencies:
+      '@astrojs/starlight': 0.22.3(astro@4.8.3)
+      rehype-raw: 7.0.0
+      unist-util-visit: 5.0.0
+      unist-util-visit-parents: 6.0.1
     dev: false
 
   /stdin-discarder@0.2.2:

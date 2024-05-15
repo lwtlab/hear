@@ -1,10 +1,12 @@
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import starlightImageZoom from "starlight-image-zoom";
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [
     starlight({
+      plugins: [starlightImageZoom()],
       title: "AI Hear",
       // Set English as the default language for this site.
       defaultLocale: "root", // optional
