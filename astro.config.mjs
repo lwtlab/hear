@@ -6,10 +6,12 @@ import starlightImageZoom from "starlight-image-zoom";
 export default defineConfig({
   integrations: [
     starlight({
+      site: "https://lwtlab.github.io",
+      base: "hear",
       plugins: [starlightImageZoom()],
-	//   components: {
-    //     Header: './src/components/Header.astro',
-    //   },
+      //   components: {
+      //     Header: './src/components/Header.astro',
+      //   },
       title: "AI Hear",
       // Set English as the default language for this site.
       defaultLocale: "root", // optional
