@@ -5,7 +5,7 @@ import starlight from "@astrojs/starlight";
 export default defineConfig({
   integrations: [
     starlight({
-      title: "My Docs",
+      title: "AI Hear",
       // Set English as the default language for this site.
       defaultLocale: "root", // optional
       locales: {
