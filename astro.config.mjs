@@ -7,6 +7,9 @@ export default defineConfig({
   integrations: [
     starlight({
       plugins: [starlightImageZoom()],
+	//   components: {
+    //     Header: './src/components/Header.astro',
+    //   },
       title: "AI Hear",
       // Set English as the default language for this site.
       defaultLocale: "root", // optional
