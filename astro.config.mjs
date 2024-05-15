@@ -4,9 +4,9 @@ import starlightImageZoom from "starlight-image-zoom";
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://hear.thucydides.net",
   integrations: [
     starlight({
-      site: "https://hear.thucydides.net",
       plugins: [starlightImageZoom()],
       //   components: {
       //     Header: './src/components/Header.astro',
