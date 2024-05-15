@@ -7,11 +7,12 @@ export default defineConfig({
     starlight({
       title: "My Docs",
       // Set English as the default language for this site.
-      defaultLocale: "en",
+      defaultLocale: "root", // optional
       locales: {
-        // English docs in `src/content/docs/en/`
-        en: {
+        // English docs in `src/content/docs/`
+        root: {
           label: "English",
+          lang: "en", // lang is required for root locales
         },
         // Simplified Chinese docs in `src/content/docs/zh-cn/`
         "zh-cn": {
