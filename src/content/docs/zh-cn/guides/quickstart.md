@@ -1,6 +1,6 @@
 ---
-title: Example Guide
-description: A guide in my new Starlight docs site.
+title: 快速开始
+description: 快速开始，最简启动和使用 AI Hear
 ---
 
 Guides lead a user through a specific task they want to accomplish, often with a sequence of steps.

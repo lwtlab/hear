@@ -28,13 +28,24 @@ export default defineConfig({
       sidebar: [
         {
           label: "Guides",
+          translations: {
+            "zh-CN": "教程",
+          },
           items: [
-            // Each item here is one entry in the navigation menu.
-            { label: "Example Guide", link: "/guides/example/" },
+            {
+              label: "Quick Start",
+              translations: {
+                "zh-CN": "快速开始",
+              },
+              link: "/guides/quickstart/",
+            },
           ],
         },
         {
           label: "User Stories",
+          translations: {
+            "zh-CN": "用户故事",
+          },
           autogenerate: { directory: "userstories" },
         },
         {
