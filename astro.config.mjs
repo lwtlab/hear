@@ -32,6 +32,10 @@ export default defineConfig({
           ],
         },
         {
+          label: "User Stories",
+          autogenerate: { directory: "userstories" },
+        },
+        {
           label: "Reference",
           autogenerate: { directory: "reference" },
         },
