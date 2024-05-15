@@ -6,8 +6,7 @@ import starlightImageZoom from "starlight-image-zoom";
 export default defineConfig({
   integrations: [
     starlight({
-      site: "https://lwtlab.github.io",
-      base: "hear",
+      site: "https://hear.thucydides.net",
       plugins: [starlightImageZoom()],
       //   components: {
       //     Header: './src/components/Header.astro',
