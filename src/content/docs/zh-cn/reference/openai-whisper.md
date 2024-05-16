@@ -3,6 +3,8 @@ title: OpenAI Whisper 介绍
 description: 介绍 OpenAI Whisper
 ---
 
+![openai-whisper](https://raw.githubusercontent.com/openai/whisper/main/approach.png)
+
 
 OpenAI Whisper 是一个强大的自动语音识别 (ASR) 系统，旨在将语音信号转录为文本。以下是一些关于 Whisper 模型的重要信息：
 
