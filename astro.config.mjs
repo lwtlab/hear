@@ -54,6 +54,9 @@ export default defineConfig({
         },
         {
           label: "Reference",
+          translations: {
+            "zh-CN": "参考",
+          },
           autogenerate: { directory: "reference" },
         },
       ],
