@@ -1,5 +1,5 @@
 ---
-title: OpenAI Whisper 介绍
+title: OpenAI Whisper
 description: 介绍 OpenAI Whisper
 ---
 
