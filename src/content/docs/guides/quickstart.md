@@ -19,6 +19,9 @@ AI Hear utilizes OpenAI Whisper, a privacy protection technology developed by Op
 - **Larger Models:** Provides a transcription delay of about 5 seconds, ideal for recording and reviewing later with excellent accuracy.
 
 ## How to Change Audio Source? 🔊
+![Audible](../../../assets/images/switch-audio-sources.png)
+
+
 AI Hear collects audio from your MacBook and transcribes it using local processing, ensuring your privacy. You can customize the audio source:
 - **System Audio**: Captures all system sounds, including browser, app music, video players, and macOS system sounds.
 - **Microphone**: Captures audio through a connected microphone, ideal for recording spoken words.
