@@ -1,5 +1,13 @@
 pnpm dev
 
+setup
+```
+git config user.email "knxjulien@gmail.com"
+git config user.name "knxjulien"
+```
+
+
+
 本地分支
 ```
 git branch
