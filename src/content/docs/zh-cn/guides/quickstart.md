@@ -27,4 +27,4 @@ AI Hear 通过 MacBook 录音后使用本地处理转录，确保您的隐私：
 - ***提示***：将应用程序设置为静音时,不影响翻译录制。
 
 ## 如何下载 AI Hear?
-点击[AI Hear](https://apps.apple.com/app/ai-hear/id6497877058)开始下载。
+点击 [AI Hear](https://apps.apple.com/app/ai-hear/id6497877058) 开始下载。
