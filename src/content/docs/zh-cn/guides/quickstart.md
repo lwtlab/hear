@@ -3,7 +3,7 @@ title: 快速开始
 description: 快速开始，最简启动和使用 AI Hear
 ---
 
-## 何时打开 AI Hear? 🎧
+## 何时打开 AI Hear?🎧
 当您在观看视频、音乐或直播内容时，只需打开AI Hear进行实时转录，即可保存音频和文本翻译：
 - **📺** YouTube, Netflix, BBC, iPlayer 等。
 - **👂** Spotify, Apple Podcasts, Stitcher 等。
