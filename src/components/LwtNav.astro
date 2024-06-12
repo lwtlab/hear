@@ -1,0 +1,35 @@
+---
+import type { Props } from "@astrojs/starlight/props";
+
+const { data } = Astro.props.entry;
+const navs = [
+  { text: "Home", link: "/" },
+  { text: "Pricing", link: "/guides/pricing" },
+  { text: "Download", link: "/guides/download" },
+];
+---
+
+{
+  navs.length > 0 && (
+    <div class="navs">
+      {navs.map(({ text, link }) => (
+        <a class="nav" href={link}>
+          {text}
+        </a>
+      ))}
+    </div>
+  )
+}
+
+<style>
+  .navs {
+    display: flex;
+  }
+  .nav {
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 0px 12px;
+    transition: color 0.25s ease 0s;
+  }
+</style>

@@ -1,5 +1,5 @@
-import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { defineConfig } from "astro/config";
 import starlightImageZoom from "starlight-image-zoom";
 
 // https://astro.build/config
@@ -8,9 +8,9 @@ export default defineConfig({
   integrations: [
     starlight({
       plugins: [starlightImageZoom()],
-      //   components: {
-      //     Header: './src/components/Header.astro',
-      //   },
+      components: {
+        Header: "./src/components/LwtHeader.astro",
+      },
       title: "AI Hear",
       // Set English as the default language for this site.
       defaultLocale: "root", // optional
@@ -27,6 +27,7 @@ export default defineConfig({
         },
       },
       social: {
+        email: "mailto:help@thucydides.net",
         github: "https://github.com/withastro/starlight",
       },
       sidebar: [
