@@ -32,13 +32,13 @@ const navs = [
     font-weight: 500;
     padding: 0px 12px;
     transition: color 0.25s ease 0s;
-    color: black;
+    color: var(--font-color-${props.theme === "dark" ? "dark": "light"});
   }
   a {
     text-decoration: none;
   }
   /* 当鼠标悬停在链接上时改变其样式 */
   a:hover {
-    color: blue; /* 例如，将文本颜色变为蓝色 */
+    color: rgba(134, 134, 215, 0.919); /* 例如，将文本颜色变为蓝色 */
   }
 </style>
