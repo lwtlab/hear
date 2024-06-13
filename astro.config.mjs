@@ -35,20 +35,20 @@ export default defineConfig({
         {
           label: "Guides",
           translations: {
-            "zh-CN": "教程",
+            "zh-CN": "手册",
           },
           items: [
             {
               label: "Quick Start",
               translations: {
-                "zh-CN": "快速开始",
+                "zh-CN": "产品",
               },
               link: "/guides/quickstart/",
             },
             {
               label: "Pricing",
               translations: {
-                "zh-CN": "价格",
+                "zh-CN": "定价",
               },
               link: "/guides/pricing/",
             },
@@ -71,14 +71,14 @@ export default defineConfig({
         {
           label: "User Stories",
           translations: {
-            "zh-CN": "用户故事",
+            "zh-CN": "用途",
           },
           autogenerate: { directory: "userstories" },
         },
         {
           label: "Reference",
           translations: {
-            "zh-CN": "参考",
+            "zh-CN": "资讯",
           },
           autogenerate: { directory: "reference" },
         },
