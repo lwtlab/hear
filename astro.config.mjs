@@ -7,6 +7,7 @@ export default defineConfig({
   site: "https://hear.thucydides.net",
   integrations: [
     starlight({
+      favicon: "/favicon.ico",
       plugins: [starlightImageZoom()],
       components: {
         Header: "./src/components/LwtHeader.astro",
@@ -28,7 +29,7 @@ export default defineConfig({
       },
       social: {
         email: "mailto:help@thucydides.net",
-        github: "https://github.com/withastro/starlight",
+        // github: "https://github.com/withastro/starlight",
       },
       sidebar: [
         {
