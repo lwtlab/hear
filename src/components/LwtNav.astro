@@ -2,10 +2,34 @@
 import type { Props } from "@astrojs/starlight/props";
 
 const { data } = Astro.props.entry;
+const lang = Astro.props.lang;
+
 const navs = [
-  { text: "Home", link: "/" },
-  { text: "Pricing", link: "/guides/pricing" },
-  { text: "Download", link: "/guides/download" },
+  {
+    text: lang == "en" ? "Home" : "主页",
+    link: lang == "en" ? "/" : `/${lang.toLowerCase()}`,
+  },
+  {
+    text: lang == "en" ? "Pricing" : "定价",
+    link:
+      lang == "en"
+        ? "/guides/pricing"
+        : `/${lang.toLowerCase()}/guides/pricing`,
+  },
+  {
+    text: lang == "en" ? "Download" : "下载应用",
+    link:
+      lang == "en"
+        ? "/guides/download"
+        : `/${lang.toLowerCase()}/guides/download`,
+  },
+  {
+    text: lang == "en" ? "Feedback" : "问题反馈",
+    link:
+      lang == "en"
+        ? "/guides/feedback"
+        : `/${lang.toLowerCase()}/guides/feedback`,
+  },
 ];
 ---
 
@@ -13,7 +37,7 @@ const navs = [
   navs.length > 0 && (
     <div class="navs">
       {navs.map(({ text, link }) => (
-        <a class="nav" href={link}>
+        <a id="nav" class="nav" href={link}>
           {text}
         </a>
       ))}
@@ -31,5 +55,14 @@ const navs = [
     font-weight: 500;
     padding: 0px 12px;
     transition: color 0.25s ease 0s;
+    background-color: var(--sl-color-bg-nav);
+    color: var(--sl-color-gray-1);
+  }
+  a {
+    text-decoration: none;
+  }
+  /* 当鼠标悬停在链接上时改变其样式 */
+  a:hover {
+    opacity: 0.66;
   }
 </style>
