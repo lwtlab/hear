@@ -6,6 +6,7 @@ const navs = [
   { text: "Home", link: "/" },
   { text: "Pricing", link: "/guides/pricing" },
   { text: "Download", link: "/guides/download" },
+  { text: "Feedback", link: "/guides/feedback" },
 ];
 ---
 
@@ -13,7 +14,7 @@ const navs = [
   navs.length > 0 && (
     <div class="navs">
       {navs.map(({ text, link }) => (
-        <a class="nav" href={link}>
+        <a id="nav" class="nav" href={link}>
           {text}
         </a>
       ))}
@@ -31,5 +32,13 @@ const navs = [
     font-weight: 500;
     padding: 0px 12px;
     transition: color 0.25s ease 0s;
+    color: black;
+  }
+  a {
+    text-decoration: none;
+  }
+  /* 当鼠标悬停在链接上时改变其样式 */
+  a:hover {
+    color: blue; /* 例如，将文本颜色变为蓝色 */
   }
 </style>
