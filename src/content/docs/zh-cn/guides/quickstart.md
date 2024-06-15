@@ -1,8 +1,7 @@
 ---
-title: 快速开始
+title: AI Hear介绍
 description: 快速开始，最简启动和使用 AI Hear
 ---
-
 ## 在何时打开 AI Hear? 🎧
 - **📺视频** YouTube, Netflix, BBC, iPlayer.
 - **👂播客** Spotify, Apple Podcasts, Stitcher.
