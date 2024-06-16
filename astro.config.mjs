@@ -35,7 +35,8 @@ export default defineConfig({
         },
       },
       social: {
-        email: "mailto:help@thucydides.net",
+        email: "mailto:contact@thucydides.net",
+        'x.com': "https://x.com/thucydides66666",
         // github: "https://github.com/withastro/starlight",
       },
       sidebar: [
