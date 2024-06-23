@@ -3,7 +3,7 @@ title: Welcome to AI Hear
 description: Get started building your docs site with Starlight.
 template: splash
 hero:
-  tagline: Embark on a new realm of entertainment, productivity, and knowledge with your offline translation software.
+  tagline: A private, locally-run software. One-click real-time translation in multiple languages, managing audio, translations, and timelines—even offline in classrooms, subways, malls, or outdoors. No data collection, privacy protected.
   image:
     file: ../../assets/狸花猫戴着耳机开会犯困-rbg.webp
   actions:
@@ -19,19 +19,33 @@ hero:
       icon: right-arrow
 ---
 
+![home](../../assets/images/homepage001.gif)
+
+---
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
 <CardGrid stagger>
-	<Card title="When to use" icon="laptop">
-		Use AI Hear to instantly transcribe and translate live content or your own speech, and save both audio and text effortlessly.
-	</Card>
-	<Card title="Switch Audio Sources" icon="setting">
-		In AI Hear, you can easily switch between system audio, microphone and specific application audio sources.
-	</Card>
-	<Card title="Defaults to using the most resource-efficient model" icon="setting">
-		In AI Hear, switching models based on your needs to balance translation speed and accuracy is easy.
-	</Card>
-	<Card title="Run it locally" icon="open-book">
-		All data remains on your local device during usage, ensuring the privacy of your information.
-	</Card>
+    <Card title="Hardware Requirements" icon="pencil" style="width: 20px; height: 10px;">
+        1. macOS system.
+        2. M1 and above series chips.
+        3. Windows system support coming soon.
+    </Card>
+    <Card title="Main Features" icon="add-document">
+        1. Recording: Select system sound, microphone, or specific software within the app, such as Zoom, browser, player (no audio driver required).
+        2. Speech Recognition: Speech-to-text based on the OpenAI Whisper model.
+        3. Translation: Freely switch engines within the app, supporting open interface formats like Ollama, OpenAI, etc.
+        4. Saving: Automatically save audio, originals, translations, and timelines after recording.
+        5. Export: Formats supported include SRT, TXT, VTT.
+    </Card>
+    <Card title="Usage Scenarios" icon="setting">
+        1. Online meetings, online courses, podcasts, game streaming, video calls.
+        2. Foreign language classes, original movies, on the commute.
+        3. Collecting foreign language materials, recording meeting content, learning languages, practicing speaking.
+    </Card>
+    <Card title="Why Choose AI Hear" icon="open-book">
+        1. Completely local operation, no data collection, privacy protection.
+        2. More cost-effective compared to real-time translation on the market.
+        3. Regularly collect user suggestions for targeted iteration and optimization.
+        4. Continuously follow AI technology changes to expand product functions.
+    </Card>
 </CardGrid>

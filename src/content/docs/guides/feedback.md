@@ -3,4 +3,5 @@ title: Feedback
 description: Feedback.
 ---
 
-Feedback
+1. For software problem: help@thucydides.net
+2. Others: contact@thucydides.net
