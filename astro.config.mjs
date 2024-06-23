@@ -68,20 +68,20 @@ export default defineConfig({
               },
               link: "/guides/quickstart/",
             },
-            {
-              label: "Pricing",
-              translations: {
-                "zh-CN": "定价",
-              },
-              link: "/guides/pricing/",
-            },
-            {
-              label: "Download",
-              translations: {
-                "zh-CN": "下载",
-              },
-              link: "/guides/download/",
-            },
+            // {
+            //   label: "Pricing",
+            //   translations: {
+            //     "zh-CN": "定价",
+            //   },
+            //   link: "/guides/pricing/",
+            // },
+            // {
+            //   label: "Download",
+            //   translations: {
+            //     "zh-CN": "下载",
+            //   },
+            //   link: "/guides/download/",
+            // },
             {
               label: "Feedback",
               translations: {
