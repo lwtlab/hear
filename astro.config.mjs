@@ -51,7 +51,7 @@ export default defineConfig({
       social: {
         email: "mailto:contact@thucydides.net",
         "x.com": "https://x.com/thucydides66666",
-        discord: "https://discord.gg/2qVcgw29",
+        discord: "https://discord.gg/pkdMExztrC",
         // github: "https://github.com/withastro/starlight",
       },
       sidebar: [
