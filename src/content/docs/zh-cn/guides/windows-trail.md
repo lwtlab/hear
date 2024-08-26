@@ -16,7 +16,7 @@ AI Hear 底层技术与 Ollama 底层技术同源，理论上 Ollama 支持的 N
 ## 下载
 
 Github 下载地址：
-https://github.com/lwtlab/hear/releases/download/v0.1.0-win32-trail/AI.Hear-win32-x64.7z
+https://github.com/lwtlab/hear/releases/download/v1.0.1/AI.Hear.Trial.-1.0.1.Setup.exe
 
 
 ## 反馈
