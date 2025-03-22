@@ -19,10 +19,6 @@ AI Hear 底层技术与 Ollama 底层技术同源，理论上 Ollama 支持的 N
 
 https://github.com/lwtlab/hear/releases
 
-### 阿里云盘
-
-https://www.alipan.com/s/wbtb4kFTnJg
-
 ## 反馈
 
 通过 Discord 反馈问题。
