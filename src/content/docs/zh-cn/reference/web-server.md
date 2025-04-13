@@ -29,7 +29,7 @@ curl "http://localhost:35123/start?source=system&model=tiny&lang_from=en&lang_to
 curl "http://localhost:35123/stop"
 ```
 
-## 三、进阶
+## 三、接口
 
 ### 1、/start - 开始转录
 
@@ -37,12 +37,12 @@ curl "http://localhost:35123/stop"
 
 - request
 
-| 参数名    | 类型   | 描述     | 是否必须 | 默认值 | 备注                                                                                     |
-| --------- | ------ | -------- | -------- | ------ | ---------------------------------------------------------------------------------------- |
-| source    | string | 音频源   | 是       | system | system 或 microphone                                                                     |
-| model     | string | 语音模型 | 是       | tiny   | 可以是内置模型[见附录](#1内置模型列表)或者外部模型：内置模型传模型名，外部模型传绝对地址 |
-| lang_from | string | 音频语言 | 否       | auto   | 语言代码，例如：zh-Hans、en [见附录](#2语言列表)                                         |
-| lang_to   | string | 翻译语言 | 否       | n/a    | 语言代码，例如：zh-Hans、en [见附录](#2语言列表)                                         |
+| 参数名    | 类型   | 描述     | 是否必须 | 默认值 | 备注                                                                               |
+| --------- | ------ | -------- | -------- | ------ | ---------------------------------------------------------------------------------- |
+| source    | string | 音频源   | 否       | system | system 或 microphone                                                               |
+| model     | string | 语音模型 | 否       | tiny   | 可以是[内置模型](#2内置模型列表)或者外部模型：内置模型传模型名，外部模型传绝对地址 |
+| lang_from | string | 音频语言 | 否       | auto   | [语言代码](#3语言列表)，例如：zh-Hans、en                                          |
+| lang_to   | string | 翻译语言 | 否       | n/a    | [语言代码](#3语言列表)，例如：zh-Hans、en                                          |
 
 - response
 
@@ -80,9 +80,26 @@ curl "http://localhost:35123/stop"
 | close     | 连接关闭 |      |
 | error     | 错误信息 |      |
 
-## 四、附录
+## 四、进阶
 
-### 1、内置模型列表
+### 1、端口号
+
+- 默认端口号：35123
+- 可以通过环境变量 `HEAR_WEB_SERVER_PORT` 来设置端口号
+
+## 五、附录
+
+### 1、错误码
+
+| 错误码 | 描述         |
+| ------ | ------------ |
+| 200    | 成功         |
+| 500    | 失败         |
+| 5001   | 已经开始转录 |
+| 5002   | 还未开始转录 |
+| 5003   | 参数错误     |
+
+### 2、内置模型列表
 
 > ⚠️ 模型使用前需要提前下载到本地
 
@@ -103,7 +120,7 @@ curl "http://localhost:35123/stop"
 | large-v3            |                             | ["large"]                             | ggerganov/whisper.cpp | ggml-large-v3.bin               | Warning: Only suitable for file transcription (coming soon). Most accurate transcription...       | 2.9 GB | 3095033483 | ~4.7 GB | ad82bf6a9043ceed055076d0fd39f5f186ff8062 |
 | ggml-large-v2-q5_0  |                             | ["large", "quantized"]                | ggerganov/whisper.cpp | ggml-large-v2-q5_0.bin          | Most accurate transcription, updated model but can have repetition in transcript                  | 1.1 GB | 1080732091 | 2 GB    | 00e39f2196344e901b3a2bd5814807a769bd1630 |
 
-### 2、语言列表
+### 3、语言列表
 
 > ⚠️ 以下两个是特殊的 code
 >
