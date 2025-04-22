@@ -27,11 +27,28 @@ curl "http://localhost:35123/start?source=system&model=tiny&lang_from=en&lang_to
 
 # 3、停止转录
 curl "http://localhost:35123/stop"
+
+# 4、获取模型列表
+curl "http://localhost:35123/models"
+
+# 5、获取全量字幕
+curl "http://localhost:35123/allcaptions"
 ```
 
 ## 三、接口
 
-### 1、/start - 开始转录
+### 1、/events - 订阅 Server-Sent Events
+
+| 事件      | 描述     | 备注 |
+| --------- | -------- | ---- |
+| captions  | 转录字幕 |      |
+| translate | 字幕翻译 |      |
+| ping      | 心跳     |      |
+| open      | 连接建立 |      |
+| close     | 连接关闭 |      |
+| error     | 错误信息 |      |
+
+### 2、/start - 开始转录
 
 - method `GET` `POST`
 
@@ -52,7 +69,7 @@ curl "http://localhost:35123/stop"
 | message | string | 描述信息 |
 | data    | object | 数据     |
 
-### 2、/stop - 停止转录
+### 3、/stop - 停止转录
 
 - method `GET` `POST`
 
@@ -69,16 +86,345 @@ curl "http://localhost:35123/stop"
 | message | string | 描述信息 |
 | data    | object | 数据     |
 
-### 3、/events - 订阅 Server-Sent Events
 
-| 事件      | 描述     | 备注 |
-| --------- | -------- | ---- |
-| captions  | 转录字幕 |      |
-| translate | 字幕翻译 |      |
-| ping      | 心跳     |      |
-| open      | 连接建立 |      |
-| close     | 连接关闭 |      |
-| error     | 错误信息 |      |
+### 4、/models - 获取模型列表
+
+- method `GET` `POST`
+
+- request
+
+| 参数名 | 类型 | 描述 | 是否必须 | 默认值 | 备注 |
+| ------ | ---- | ---- | -------- | ------ | ---- |
+
+- response
+
+| 参数名  | 类型   | 描述     |
+| ------- | ------ | -------- |
+| code    | int    | 状态码   |
+| message | string | 描述信息 |
+| data    | object | 模型数组     |
+
+```json
+{
+  "code": 200,
+  "message": "get models success",
+  "data": [
+    {
+      "model": "tiny",
+      "tag": [
+        "realtime",
+        "tiny"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-tiny.bin",
+      "desc": "Very fast but bad accuracy",
+      "disk": "75 MB",
+      "size": 77691713,
+      "mem": "~390 MB",
+      "sha": "bd577a113a864445d4c299885e0cb97d4ba92b5f",
+      "localPath": "/Users/xxxx/Library/Application Support/AIHear/models/ggml-tiny.bin"
+    },
+    {
+      "lang": [
+        "en"
+      ],
+      "model": "tiny.en",
+      "tag": [
+        "realtime",
+        "tiny"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-tiny.en.bin",
+      "desc": "Very fast but bad accuracy. English only.",
+      "disk": "75 MB",
+      "size": 77704715,
+      "mem": "~390 MB",
+      "sha": "c78c86eb1a8faa21b369bcd33207cc90d64ae9df",
+      "localPath": "/Users/xxxx/Library/Application Support/AIHear/models/ggml-tiny.en.bin"
+    },
+    {
+      "model": "base",
+      "tag": [
+        "realtime",
+        "base"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-base.bin",
+      "desc": "Fast with decent accuracy",
+      "disk": "142 MB",
+      "size": 147951465,
+      "mem": "~500 MB",
+      "sha": "465707469ff3a37a2b9b8d8f89f2f99de7299dac",
+      "localPath": ""
+    },
+    {
+      "lang": [
+        "en"
+      ],
+      "model": "base.en",
+      "tag": [
+        "realtime",
+        "base"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-base.en.bin",
+      "desc": "Fast with decent accuracy. English only.",
+      "disk": "142 MB",
+      "size": 147964211,
+      "mem": "~500 MB",
+      "sha": "137c40403d78fd54d454da0f9bd998f78703390c",
+      "localPath": ""
+    },
+    {
+      "lang": [
+        "zh",
+        "en",
+        "yue",
+        "ja",
+        "ko"
+      ],
+      "model": "sensevoice.small",
+      "tag": [
+        "realtime",
+        "sensevoice",
+        "quantized"
+      ],
+      "repo": "xumo/sense-voice-gguf",
+      "repoFile": "gguf-fp16-sense-voice-small.bin",
+      "desc": "Experimental. SenseVoice Small is an open-source speech recognition model developed by Alibaba, supporting multiple languages including Chinese, English, Cantonese, Japanese, and Korean.",
+      "disk": "466 MB",
+      "size": 469406560,
+      "mem": "~1.0 GB",
+      "sha": "8176595ec830f32f385ca6d28ad86008db88de32",
+      "localPath": "/Users/xxxx/Library/Application Support/AIHear/models/gguf-fp16-sense-voice-small.bin"
+    },
+    {
+      "model": "small",
+      "tag": [
+        "realtime",
+        "small"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-small.bin",
+      "desc": "Normal speed with good accuracy",
+      "disk": "466 MB",
+      "size": 487601967,
+      "mem": "~1.0 GB",
+      "sha": "55356645c2b361a969dfd0ef2c5a50d530afd8d5",
+      "localPath": ""
+    },
+    {
+      "lang": [
+        "en"
+      ],
+      "model": "small.en",
+      "tag": [
+        "realtime",
+        "small"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-small.en.bin",
+      "desc": "Normal speed with good accuracy. English only.",
+      "disk": "466 MB",
+      "size": 487614201,
+      "mem": "~1.0 GB",
+      "sha": "db8a495a91d927739e50b3fc1cc4c6b8f6c2d022",
+      "localPath": ""
+    },
+    {
+      "model": "medium",
+      "tag": [
+        "medium"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-medium.bin",
+      "desc": "Warning: Only suitable for file transcription (coming soon). Slow but great accuracy",
+      "disk": "1.5 GB",
+      "size": 1533763059,
+      "mem": "~2.6 GB",
+      "sha": "fd9727b6e1217c2f614f9b698455c4ffd82463b4",
+      "localPath": ""
+    },
+    {
+      "model": "ggml-medium-q5_0",
+      "tag": [
+        "medium",
+        "quantized"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-medium-q5_0.bin",
+      "desc": "Slow but great accuracy",
+      "disk": "539 MB",
+      "size": 539212467,
+      "mem": "~1.0 GB",
+      "sha": "7718d4c1ec62ca96998f058114db98236937490e",
+      "localPath": ""
+    },
+    {
+      "lang": [
+        "en"
+      ],
+      "model": "medium.en",
+      "tag": [
+        "medium"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-medium.en.bin",
+      "desc": "Warning: Only suitable for file transcription (coming soon). Slow but great accuracy",
+      "disk": "1.5 GB",
+      "size": 1533774781,
+      "mem": "~2.6 GB",
+      "sha": "8c30f0e44ce9560643ebd10bbe50cd20eafd3723",
+      "localPath": ""
+    },
+    {
+      "model": "large-v3-turbo-q5_0",
+      "tag": [
+        "realtime",
+        "large"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-large-v3-turbo-q5_0.bin",
+      "desc": "Whisper large-v3-turbo is a finetuned version of a pruned Whisper large-v3.",
+      "disk": "574 MB",
+      "size": 574041195,
+      "mem": "~?? GB",
+      "sha": "e050f7970618a659205450ad97eb95a18d69c9ee",
+      "localPath": ""
+    },
+    {
+      "model": "large-v2",
+      "tag": [
+        "large"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-large-v2.bin",
+      "desc": "Warning: Only suitable for file transcription (coming soon). Most accurate transcription, updated model but can have repetition in transcript",
+      "disk": "2.9 GB",
+      "size": 3094623691,
+      "mem": "~4.7 GB",
+      "sha": "0f4c8e34f21cf1a914c59d8b3ce882345ad349d6",
+      "localPath": ""
+    },
+    {
+      "model": "large-v3",
+      "tag": [
+        "large"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-large-v3.bin",
+      "desc": "Warning: Only suitable for file transcription (coming soon). Most accurate transcription, updated model but can have repetition in transcript",
+      "disk": "2.9 GB",
+      "size": 3095033483,
+      "mem": "~4.7 GB",
+      "sha": "ad82bf6a9043ceed055076d0fd39f5f186ff8062",
+      "localPath": ""
+    },
+    {
+      "model": "ggml-large-v2-q5_0",
+      "tag": [
+        "large",
+        "quantized"
+      ],
+      "repo": "ggerganov/whisper.cpp",
+      "repoFile": "ggml-large-v2-q5_0.bin",
+      "desc": "Most accurate transcription, updated model but can have repetition in transcript",
+      "disk": "1.1 GB",
+      "size": 1080732091,
+      "mem": "2 GB",
+      "sha": "00e39f2196344e901b3a2bd5814807a769bd1630",
+      "localPath": ""
+    }
+  ]
+}
+```
+
+### 5、/allcaptions - 获取全量字幕
+
+> ⚠️ 最好不要轮询这个接口作为实时字幕，因为这个接口会返回所有的字幕，可能会导致内存占用过高，建议使用 [/events](#1events---订阅-server-sent-events) 接口作为实时字幕。
+
+- method `GET` `POST`
+
+- request
+
+| 参数名 | 类型 | 描述 | 是否必须 | 默认值 | 备注 |
+| ------ | ---- | ---- | -------- | ------ | ---- |
+
+- response
+
+| 参数名  | 类型   | 描述     |
+| ------- | ------ | -------- |
+| code    | int    | 状态码   |
+| message | string | 描述信息 |
+| data    | object | 字幕数组     |
+
+```json
+{
+  "code": 200,
+  "message": "get all captions success",
+  "data": [
+    {
+      "startTime": 0,
+      "endTime": 6.32,
+      "text": " Yeah, good morning from the largest Roman Catholic Church in England and Wales.",
+      "subSegments": [
+        {
+          "index": 0,
+          "startTime": 0,
+          "endTime": 6.32,
+          "text": " Yeah, good morning from the largest Roman Catholic Church in England and Wales."
+        }
+      ],
+      "fixed": true,
+      "translateText": "是的，来自英格兰和威尔士最大的罗马天主教堂的早上好。"
+    },
+    {
+      "startTime": 6.320000171661377,
+      "endTime": 11.600000171661378,
+      "text": " it was here really that's been the focal point for the past 24 hours for Catholics in this",
+      "subSegments": [
+        {
+          "index": 1,
+          "startTime": 6.320000171661377,
+          "endTime": 11.600000171661378,
+          "text": " it was here really that's been the focal point for the past 24 hours for Catholics in this"
+        }
+      ],
+      "fixed": true,
+      "translateText": "在过去的 24 小时内，这里确实是天主教徒的焦点"
+    },
+    {
+      "startTime": 11.600000381469727,
+      "endTime": 16.560000381469727,
+      "text": " part of the world to come and pay their respects to Pope Francis. And it was",
+      "subSegments": [
+        {
+          "index": 2,
+          "startTime": 11.600000381469727,
+          "endTime": 16.560000381469727,
+          "text": " part of the world to come and pay their respects to Pope Francis. And it was"
+        }
+      ],
+      "fixed": true,
+      "translateText": "世界上的一部分人来向教皇弗朗西斯表示敬意。事实确实如此"
+    },
+    {
+      "startTime": 16.559999465942383,
+      "endTime": 22.079999465942382,
+      "text": " inside the cathedral yesterday evening where there was a large wreck we have.",
+      "subSegments": [
+        {
+          "index": 3,
+          "startTime": 16.559999465942383,
+          "endTime": 22.079999465942382,
+          "text": " inside the cathedral yesterday evening where there was a large wreck we have."
+        }
+      ],
+      "fixed": false
+    }
+  ]
+}
+```
 
 ## 四、进阶
 
