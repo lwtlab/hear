@@ -82,10 +82,175 @@ curl "http://localhost:35123/stop"
 
 ## 四、进阶
 
-### 1、端口号
+
+### 1、浏览器里订阅事件
+```js
+// 浏览器里 console 里面粘贴下面的代码
+const eventSource = new EventSource('http://localhost:35123/events');
+eventSource.onopen = (e) => console.log('Connection opened', e);
+eventSource.onerror = (e) => console.log('Connection error', e);
+eventSource.addEventListener('captions', (e) => {
+  console.log('captions:', JSON.parse(e.data));
+});
+eventSource.addEventListener('translate', (e) => {
+  console.log('translate:', JSON.parse(e.data));
+});
+```
+
+### 2、订阅事件
+
+#### captions 事件
+
+```json
+// 1
+{
+  "index": 0, // 行号
+  "captions": {
+    "startTime": 0.098, // 开始时间
+    "endTime": 1.2599999904632568, // 结束时间
+    "text": "的老师快转吧。", // 语音转出来的文本
+    "subSegments": [ // 子片段，为了实现实时效果，最后一个 index 的 text 可能还会变动
+      {
+        "index": 0,
+        "startTime": 0.098,
+        "endTime": 1.2599999904632568,
+        "text": "的老师快转吧。"
+      }
+    ],
+    "fixed": false // 是否固定下来了，固定的话就不会变动
+  }
+}
+
+// 2
+{
+  "index": 0,
+  "captions": {
+    "startTime": 0.1640000194311142,
+    "endTime": 16.47599828720093,
+    "text": "的老师快转吧，我们上车了，看看能转多久。那么现在的问题是啊，我们怎么开出去呢？哎呀，怎么说？ 他们造完才发现，他们压根没想这事儿，棚子里造的门太小，开不过去。就是你说因为他造这个实验，他这个门儿。",
+    "subSegments": [
+      {
+        "index": 0,
+        "startTime": 0.1640000194311142,
+        "endTime": 6.722000019431114,
+        "text": "的老师快转吧，我们上车了，看看能转多久。那么现在的问题是啊，我们怎么开出去呢？哎呀，怎么说？"
+      },
+      {
+        "index": 1,
+        "startTime": 6.845998287200928,
+        "endTime": 16.47599828720093,
+        "text": "他们造完才发现，他们压根没想这事儿，棚子里造的门太小，开不过去。就是你说因为他造这个实验，他这个门儿。"
+      }
+    ],
+    "fixed": true,
+    "translateText": "Let's get on the bus and see how long we can turn. So the question now is, how do we drive out? Oops, how to say?"
+  }
+}
+
+// 3
+{
+  "index": 1,
+  "captions": {
+    "startTime": 16.833997741699218,
+    "endTime": 18.70006024169922,
+    "text": "早些不想好自己零家咔咔。",
+    "subSegments": [
+      {
+        "index": 2,
+        "startTime": 16.833997741699218,
+        "endTime": 18.70006024169922,
+        "text": "早些不想好自己零家咔咔。"
+      }
+    ],
+    "fixed": false
+  }
+}
+
+```
+
+#### translate 事件
+
+> ⚠️ 翻译的过程是异步的，可能会有一定的延迟，需要按照 index 来更新字幕
+
+```json
+// 1
+{
+  "index": 0,
+  "captions": {
+    "startTime": 0.1640000194311142,
+    "endTime": 16.47599828720093,
+    "text": "的老师快转吧，我们上车了，看看能转多久。那么现在的问题是啊，我们怎么开出去呢？哎呀，怎么说？ 他们造完才发现，他们压根没想这事儿，棚子里造的门太小，开不过去。就是你说因为他造这个实验，他这个门儿。",
+    "subSegments": [
+      {
+        "index": 0,
+        "startTime": 0.1640000194311142,
+        "endTime": 6.722000019431114,
+        "text": "的老师快转吧，我们上车了，看看能转多久。那么现在的问题是啊，我们怎么开出去呢？哎呀，怎么说？"
+      },
+      {
+        "index": 1,
+        "startTime": 6.845998287200928,
+        "endTime": 16.47599828720093,
+        "text": "他们造完才发现，他们压根没想这事儿，棚子里造的门太小，开不过去。就是你说因为他造这个实验，他这个门儿。"
+      }
+    ],
+    "fixed": true,
+    "translateText": "Let's get on the bus and see how long we can turn. So the question now is, how do we drive out? Oops, how to say? When they finished building, they found that they hadn't thought about it at all, and the door in the shed was too small to open. That's what you said because he made this experiment, because he made this door."
+  }
+}
+
+// 2
+{
+  "index": 1,
+  "captions": {
+    "startTime": 16.83399772644043,
+    "endTime": 27.700060455322266,
+    "text": "早些不想好，自己零家咔咔噔拼起来来，发现诶。 这个门太小了，开不出去。也从另一个层面也说做事专注啊，就没想别的事儿，就想先怎么么把这个车弄出来，也很难想象是发明家。",
+    "subSegments": [
+      {
+        "index": 2,
+        "startTime": 16.83399772644043,
+        "endTime": 19.71199772644043,
+        "text": "早些不想好，自己零家咔咔噔拼起来来，发现诶。"
+      },
+      {
+        "index": 3,
+        "startTime": 19.845997955322265,
+        "endTime": 27.700060455322266,
+        "text": "这个门太小了，开不出去。也从另一个层面也说做事专注啊，就没想别的事儿，就想先怎么么把这个车弄出来，也很难想象是发明家。"
+      }
+    ],
+    "fixed": false,
+    "translateText": "I didn't want to be good earlier, so I put it together and found it."
+  }
+}
+
+```
+
+### 3、字幕处理
+
+- 创建一个数组 lines 并根据 index 维护;
+- 每当有订阅事件过来，更新此 index 的元素；
+- 将 lines 数组渲染到页面上。参考代码如下：
+
+```js
+{
+  line.subSegments ? line.subSegments.map((item: CaptionModel, index: number) => {
+    return (
+      <span key={index} style={{ opacity: !line.fixed && index == line.subSegments.length - 1 ? 0.5 : 1 }}>
+        {item.text}
+      </span>
+    );
+  }) : line.text
+}
+```
+
+
+### 4、端口号
 
 - 默认端口号：35123
 - 可以通过环境变量 `HEAR_WEB_SERVER_PORT` 来设置端口号
+
 
 ## 五、附录
 
