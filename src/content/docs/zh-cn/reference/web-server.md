@@ -466,9 +466,9 @@ data: {"status":"completed","model":"base"}
 > 注意⚠️：下面对`翻译引擎配置`做个详细的介绍，需要严格按照下面的格式配置。
 
 ```json
-//1、比如下面 4 个翻译引擎，按照排列顺序，其中第一个是默认的翻译引擎，如果第一个翻译引擎失败，会尝试第二个翻译引擎，以此类推。
+//1、比如下面 5 个翻译引擎，按照排列顺序，其中第一个是默认的翻译引擎，如果第一个翻译引擎失败，会尝试第二个翻译引擎，以此类推。
 //2、每个翻译都有 code 和 name。code 是翻译引擎的唯一标识，name 是翻译引擎在界面上展示的名称。
-//3、microsoft、bing 和 google 这三个翻译引擎是内置的，会联网请求对应的厂商。【不要删掉】
+//3、microsoft、bing 和 google 这三个翻译引擎是内置的，会联网请求对应的厂商。【最好不要删掉】
 //4、openai 是调用 LLM 进行翻译。无论是 Ollama、DeepSeek 还是 MoonShot，都是支持 openai 协议的。所以 code 都是 openai
 //5、openai 翻译引擎需要配置 model 和 prompt。model 是 LLM 的模型名称，prompt 是翻译的提示词。
 //6、prompt 支持的变量有：{{to}} 和 {{content}}。to 是翻译的目标语言，content 是翻译的内容。
