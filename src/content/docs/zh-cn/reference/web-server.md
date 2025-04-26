@@ -28,11 +28,20 @@ curl "http://localhost:35123/start?source=system&model=tiny&lang_from=en&lang_to
 # 3、停止转录
 curl "http://localhost:35123/stop"
 
-# 4、获取模型列表
+# 4、获取模型列表[可选]
 curl "http://localhost:35123/models"
 
-# 5、获取全量字幕
+# 5、获取全量字幕[可选]
 curl "http://localhost:35123/allcaptions"
+
+# 6、下载模型[可选]
+curl "http://localhost:35123/download?model=base"
+
+# 7、获取/设置 当前配置[可选]
+# 获取 get
+curl "http://localhost:35123/config?key=STORE_USE_MODEL"
+# 设置 set
+curl "http://localhost:35123/config?key=STORE_USE_MODEL&value=tiny"
 ```
 
 ## 三、接口
@@ -43,7 +52,8 @@ curl "http://localhost:35123/allcaptions"
 | --------- | -------- | ---- |
 | captions  | 转录字幕 |      |
 | translate | 字幕翻译 |      |
-| ping      | 心跳     |      |
+| download  | 模型下载 |  下载信息回传，详细见 [/download](#6download---下载模型) 接口 |
+| ping      | 心跳    |      |
 | open      | 连接建立 |      |
 | close     | 连接关闭 |      |
 | error     | 错误信息 |      |
@@ -86,7 +96,6 @@ curl "http://localhost:35123/allcaptions"
 | message | string | 描述信息 |
 | data    | object | 数据     |
 
-
 ### 4、/models - 获取模型列表
 
 - method `GET` `POST`
@@ -102,7 +111,7 @@ curl "http://localhost:35123/allcaptions"
 | ------- | ------ | -------- |
 | code    | int    | 状态码   |
 | message | string | 描述信息 |
-| data    | object | 模型数组     |
+| data    | object | 模型数组 |
 
 ```json
 {
@@ -111,10 +120,7 @@ curl "http://localhost:35123/allcaptions"
   "data": [
     {
       "model": "tiny",
-      "tag": [
-        "realtime",
-        "tiny"
-      ],
+      "tag": ["realtime", "tiny"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-tiny.bin",
       "desc": "Very fast but bad accuracy",
@@ -125,14 +131,9 @@ curl "http://localhost:35123/allcaptions"
       "localPath": "/Users/xxxx/Library/Application Support/AIHear/models/ggml-tiny.bin"
     },
     {
-      "lang": [
-        "en"
-      ],
+      "lang": ["en"],
       "model": "tiny.en",
-      "tag": [
-        "realtime",
-        "tiny"
-      ],
+      "tag": ["realtime", "tiny"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-tiny.en.bin",
       "desc": "Very fast but bad accuracy. English only.",
@@ -144,10 +145,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "base",
-      "tag": [
-        "realtime",
-        "base"
-      ],
+      "tag": ["realtime", "base"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-base.bin",
       "desc": "Fast with decent accuracy",
@@ -158,14 +156,9 @@ curl "http://localhost:35123/allcaptions"
       "localPath": ""
     },
     {
-      "lang": [
-        "en"
-      ],
+      "lang": ["en"],
       "model": "base.en",
-      "tag": [
-        "realtime",
-        "base"
-      ],
+      "tag": ["realtime", "base"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-base.en.bin",
       "desc": "Fast with decent accuracy. English only.",
@@ -176,19 +169,9 @@ curl "http://localhost:35123/allcaptions"
       "localPath": ""
     },
     {
-      "lang": [
-        "zh",
-        "en",
-        "yue",
-        "ja",
-        "ko"
-      ],
+      "lang": ["zh", "en", "yue", "ja", "ko"],
       "model": "sensevoice.small",
-      "tag": [
-        "realtime",
-        "sensevoice",
-        "quantized"
-      ],
+      "tag": ["realtime", "sensevoice", "quantized"],
       "repo": "xumo/sense-voice-gguf",
       "repoFile": "gguf-fp16-sense-voice-small.bin",
       "desc": "Experimental. SenseVoice Small is an open-source speech recognition model developed by Alibaba, supporting multiple languages including Chinese, English, Cantonese, Japanese, and Korean.",
@@ -200,10 +183,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "small",
-      "tag": [
-        "realtime",
-        "small"
-      ],
+      "tag": ["realtime", "small"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-small.bin",
       "desc": "Normal speed with good accuracy",
@@ -214,14 +194,9 @@ curl "http://localhost:35123/allcaptions"
       "localPath": ""
     },
     {
-      "lang": [
-        "en"
-      ],
+      "lang": ["en"],
       "model": "small.en",
-      "tag": [
-        "realtime",
-        "small"
-      ],
+      "tag": ["realtime", "small"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-small.en.bin",
       "desc": "Normal speed with good accuracy. English only.",
@@ -233,9 +208,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "medium",
-      "tag": [
-        "medium"
-      ],
+      "tag": ["medium"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-medium.bin",
       "desc": "Warning: Only suitable for file transcription (coming soon). Slow but great accuracy",
@@ -247,10 +220,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "ggml-medium-q5_0",
-      "tag": [
-        "medium",
-        "quantized"
-      ],
+      "tag": ["medium", "quantized"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-medium-q5_0.bin",
       "desc": "Slow but great accuracy",
@@ -261,13 +231,9 @@ curl "http://localhost:35123/allcaptions"
       "localPath": ""
     },
     {
-      "lang": [
-        "en"
-      ],
+      "lang": ["en"],
       "model": "medium.en",
-      "tag": [
-        "medium"
-      ],
+      "tag": ["medium"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-medium.en.bin",
       "desc": "Warning: Only suitable for file transcription (coming soon). Slow but great accuracy",
@@ -279,10 +245,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "large-v3-turbo-q5_0",
-      "tag": [
-        "realtime",
-        "large"
-      ],
+      "tag": ["realtime", "large"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-large-v3-turbo-q5_0.bin",
       "desc": "Whisper large-v3-turbo is a finetuned version of a pruned Whisper large-v3.",
@@ -294,9 +257,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "large-v2",
-      "tag": [
-        "large"
-      ],
+      "tag": ["large"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-large-v2.bin",
       "desc": "Warning: Only suitable for file transcription (coming soon). Most accurate transcription, updated model but can have repetition in transcript",
@@ -308,9 +269,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "large-v3",
-      "tag": [
-        "large"
-      ],
+      "tag": ["large"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-large-v3.bin",
       "desc": "Warning: Only suitable for file transcription (coming soon). Most accurate transcription, updated model but can have repetition in transcript",
@@ -322,10 +281,7 @@ curl "http://localhost:35123/allcaptions"
     },
     {
       "model": "ggml-large-v2-q5_0",
-      "tag": [
-        "large",
-        "quantized"
-      ],
+      "tag": ["large", "quantized"],
       "repo": "ggerganov/whisper.cpp",
       "repoFile": "ggml-large-v2-q5_0.bin",
       "desc": "Most accurate transcription, updated model but can have repetition in transcript",
@@ -356,7 +312,7 @@ curl "http://localhost:35123/allcaptions"
 | ------- | ------ | -------- |
 | code    | int    | 状态码   |
 | message | string | 描述信息 |
-| data    | object | 字幕数组     |
+| data    | object | 字幕数组 |
 
 ```json
 {
@@ -426,20 +382,186 @@ curl "http://localhost:35123/allcaptions"
 }
 ```
 
+### 6、/download - 下载模型
+
+- method `GET` `POST`
+
+- request
+  | 参数名 | 类型 | 描述 | 是否必须 | 默认值 | 备注 |
+  | ------ | ---- | ---- | -------- | ------ | ---- |
+  | model | string | 模型名 | 是 |  | 模型名 |
+
+- response
+  | 参数名 | 类型 | 描述 |
+  | ------- | ------ | -------- |
+  | code | int | 状态码 |
+  | message | string | 描述信息 |
+  | data | object | 数据 |
+
+```json
+{
+  "code": 200,
+  "message": "downloader start success",
+  "data": {
+    "model": "base"
+  }
+}
+```
+
+> 💡 下载进度和结果信息通过 SSE `download` 事件回传
+
+```json
+event: download
+data: {"status":"started","model":"base"}
+
+event: download
+data: {"status":"downloading","model":"base","progress":0.12510545941535625}
+
+event: download
+data: {"status":"downloading","model":"base","progress":0.9999140055828444}
+
+event: download
+data: {"status":"downloading","model":"base","progress":1}
+
+event: download
+data: {"status":"completed","model":"base"}
+```
+
+| status | 描述 | 备注 |
+| ------ | -------- |----|
+| started | 下载开始 | |
+| downloading | 下载中 | progress [0-1] 表示进度信息 |
+| completed | 下载成功 | |
+| failed | 下载失败 | |
+
+
+### 7、/config - 获取/设置 当前配置
+
+- method `GET` `POST`
+
+- request
+
+| 参数名 | 类型 | 描述 | 是否必须 | 默认值 | 备注 |
+| ------ | ---- | ---- | -------- | ------ | ---- |
+| key | string | 配置键 | 是 |  | 配置键 |
+| value | string | 配置值 | 否 |  | 配置值。当 value 存在时，为设置值 |
+
+- response
+
+| 参数名  | 类型   | 描述     |
+| ------- | ------ | -------- |
+| code    | int    | 状态码   |
+| message | string | 描述信息 |
+| data    | object | 数据     |
+
+- 允许配置的 key 值
+
+| 键名 | 类型 | 描述 | 举例 | 备注 |
+| ---- | ---- | ---- | ------ | ---- |
+| STORE_USE_MODEL | string | 使用的模型 | 如：tiny | 模型名，请严格按照模型列表中已经下载的 model 设置 |
+| STORE_GPU_ID | string | 选在使用的 GPU | 如："0" |  |
+| STORE_VAD_ENABLED | boolean | 开启 VAD | 如：true |  |
+| STORE_TRANSLATOR_ENGINE_V1 | array | 翻译引擎配置 |  | 详细介绍如下 |
+
+> 注意⚠️：下面对`翻译引擎配置`做个详细的介绍，需要严格按照下面的格式配置。
+
+```json
+//1、比如下面 4 个翻译引擎，按照排列顺序，其中第一个是默认的翻译引擎，如果第一个翻译引擎失败，会尝试第二个翻译引擎，以此类推。
+//2、每个翻译都有 code 和 name。code 是翻译引擎的唯一标识，name 是翻译引擎在界面上展示的名称。
+//3、microsoft、bing 和 google 这三个翻译引擎是内置的，会联网请求对应的厂商。【不要删掉】
+//4、openai 是调用 LLM 进行翻译。无论是 Ollama、DeepSeek 还是 MoonShot，都是支持 openai 协议的。所以 code 都是 openai
+//5、openai 翻译引擎需要配置 model 和 prompt。model 是 LLM 的模型名称，prompt 是翻译的提示词。
+//6、prompt 支持的变量有：{{to}} 和 {{content}}。to 是翻译的目标语言，content 是翻译的内容。
+[
+  {
+    "code": "openai",
+    "name": "Ollama",
+    "model": "qwen2:1.5b",
+    "prompt": "Translate the following text into {{to}} and only show me the translated content:\n{{content}}"
+  },
+  {
+    "code": "microsoft",
+    "name": "Microsoft Translator"
+  },
+  {
+    "code": "bing",
+    "name": "Bing Translator"
+  },
+  {
+    "code": "google",
+    "name": "Google Translate"
+  },
+  {
+    "code": "openai",
+    "name": "MoonShot",
+    "model": "moonshot-v1-8k",
+    "prompt": "Translate the following text into {{to}} and only show me the translated content:\n{{content}}"
+  }
+]
+```
+> 🔔 GET 方法不方便传参可以使用 POST
+```bash
+curl -X POST "http://localhost:35123/config" \
+  -H "Content-Type: application/json" \
+  -d "key=STORE_TRANSLATOR_ENGINE_V1" \
+  -d 'value=[
+      {
+        "code": "openai",
+        "name": "Ollama",
+        "model": "qwen2:1.5b",
+        "prompt": "Translate the following text into {{to}} and only show me the translated content:\n{{content}}"
+      },
+      {
+        "code": "microsoft",
+        "name": "Microsoft Translator"
+      },
+      {
+        "code": "bing",
+        "name": "Bing Translator"
+      },
+      {
+        "code": "google",
+        "name": "Google Translate"
+      }
+    ]'
+```
+
+- 全量测试用例
+
+```bash
+
+# STORE_USE_MODEL
+curl "http://localhost:35123/config?key=STORE_USE_MODEL"
+curl "http://localhost:35123/config?key=STORE_USE_MODEL&value=tiny"
+
+# STORE_GPU_ID
+curl "http://localhost:35123/config?key=STORE_GPU_ID"
+curl "http://localhost:35123/config?key=STORE_GPU_ID&value=0"
+
+# STORE_VAD_ENABLED
+curl "http://localhost:35123/config?key=STORE_VAD_ENABLED"
+curl "http://localhost:35123/config?key=STORE_VAD_ENABLED&value=true"
+
+# STORE_TRANSLATOR_ENGINE_V1
+curl "http://localhost:35123/config?key=STORE_TRANSLATOR_ENGINE_V1" 
+
+```
+
+
 ## 四、进阶
 
-
 ### 1、浏览器里订阅事件
+
 ```js
 // 浏览器里 console 里面粘贴下面的代码
-const eventSource = new EventSource('http://localhost:35123/events');
-eventSource.onopen = (e) => console.log('Connection opened', e);
-eventSource.onerror = (e) => console.log('Connection error', e);
-eventSource.addEventListener('captions', (e) => {
-  console.log('captions:', JSON.parse(e.data));
+const eventSource = new EventSource("http://localhost:35123/events");
+eventSource.onopen = (e) => console.log("Connection opened", e);
+eventSource.onerror = (e) => console.log("Connection error", e);
+eventSource.addEventListener("captions", (e) => {
+  console.log("captions:", JSON.parse(e.data));
 });
-eventSource.addEventListener('translate', (e) => {
-  console.log('translate:', JSON.parse(e.data));
+eventSource.addEventListener("translate", (e) => {
+  console.log("translate:", JSON.parse(e.data));
 });
 ```
 
@@ -581,22 +703,27 @@ eventSource.addEventListener('translate', (e) => {
 
 ```js
 {
-  line.subSegments ? line.subSegments.map((item: CaptionModel, index: number) => {
-    return (
-      <span key={index} style={{ opacity: !line.fixed && index == line.subSegments.length - 1 ? 0.5 : 1 }}>
-        {item.text}
-      </span>
-    );
-  }) : line.text
+  line.subSegments
+    ? line.subSegments.map((item: CaptionModel, index: number) => {
+        return (
+          <span
+            key={index}
+            style={{
+              opacity:
+                !line.fixed && index == line.subSegments.length - 1 ? 0.5 : 1,
+            }}
+          >
+            {item.text}
+          </span>
+        );
+      })
+    : line.text;
 }
 ```
-
 
 ### 4、端口号
 
 - 默认端口号：35123
-- 可以通过环境变量 `HEAR_WEB_SERVER_PORT` 来设置端口号
-
 
 ## 五、附录
 
@@ -745,7 +872,7 @@ eventSource.addEventListener('translate', (e) => {
 | yue-Hans | Cantonese Simplified  | 简体粤语         | yue         | 以下是普通话的句子。 | yue      | null       |
 | yue-Hant | Cantonese Traditional | 繁體粤语         | yue         | 以下是普通話的句子。 | yue      | null       |
 
-## 五、相关链接
+## 六、相关链接
 
 - Server-Sent Events
   - [mdn web docs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
