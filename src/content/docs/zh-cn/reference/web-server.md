@@ -624,6 +624,8 @@ curl "http://localhost:35123/config?key=STORE_VAD_ENABLED&value=true"
 # STORE_TRANSLATOR_ENGINE_V1
 curl "http://localhost:35123/config?key=STORE_TRANSLATOR_ENGINE_V1" 
 
+# STORE_PROVIDERS
+curl "http://localhost:35123/config?key=STORE_PROVIDERS"
 ```
 
 
