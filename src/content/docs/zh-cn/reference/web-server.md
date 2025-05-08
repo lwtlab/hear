@@ -463,8 +463,9 @@ data: {"status":"completed","model":"base"}
 | STORE_GPU_ID | string | 选在使用的 GPU | 如："0" |  |
 | STORE_VAD_ENABLED | boolean | 开启 VAD | 如：true |  |
 | STORE_TRANSLATOR_ENGINE_V1 | array | 翻译引擎配置 |  | 详细介绍如下 |
+| STORE_PROVIDERS | array | LLM 提供者配置 |  | 详细介绍如下 |
 
-> 注意⚠️：下面对`翻译引擎配置`做个详细的介绍，需要严格按照下面的格式配置。
+> 注意⚠️：下面对`翻译引擎配置 - STORE_TRANSLATOR_ENGINE_V1`做个详细的介绍，需要严格按照下面的格式配置。
 
 ```json
 //1、比如下面 5 个翻译引擎，按照排列顺序，其中第一个是默认的翻译引擎，如果第一个翻译引擎失败，会尝试第二个翻译引擎，以此类推。
@@ -503,7 +504,7 @@ data: {"status":"completed","model":"base"}
 > 🔔 GET 方法不方便传参可以使用 POST
 ```bash
 curl -X POST "http://localhost:35123/config" \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
   -d "key=STORE_TRANSLATOR_ENGINE_V1" \
   -d 'value=[
       {
@@ -525,6 +526,83 @@ curl -X POST "http://localhost:35123/config" \
         "name": "Google Translate"
       }
     ]'
+```
+
+> 注意⚠️：下面对`LLM 提供者配置 - STORE_PROVIDERS`做个详细的介绍，需要严格按照下面的格式配置。
+
+```json
+[
+  {
+    "brand": "Ollama",
+    "descriptions": "Ollama is a versatile, open-source tool that enables users to run and interact with large language models (LLMs) directly on their local machines. It is recommended to use smaller models such as qwen2:1.5b for real-time translation. https://www.ollama.com/",
+    "domain": "http://127.0.0.1:11434",
+    "path": "/v1/chat/completions",
+    "key": "ollama", // Ollama 的这个 key 是固定的，不要修改
+    "models": [
+      "qwen2:1.5b",
+      "qwen2:2.5b"
+    ]
+  },
+  {
+    "brand": "DeepSeek",
+    "descriptions": "DeepSeek is a cutting-edge AI company that has developed a series of high-performance language models under the DeepSeek LLM brand. Their API pricing is quite affordable. https://www.deepseek.com/",
+    "domain": "https://api.deepseek.com",
+    "path": "/v1/chat/completions",
+    "key": "sk-1234567890",
+    "models": [
+      "deepseek-chat"
+    ]
+  },
+  {
+    "brand": "MoonShot",
+    "descriptions": "Moonshot AI is a prominent Chinese startup that specializes in the development of advanced artificial intelligence technologies, particularly large language models (LLMs) and conversational AI solutions. Please note, the free quota is subject to throttling which may affect the real-time translation experience. https://www.moonshot.cn/",
+    "domain": "https://api.moonshot.cn",
+    "path": "/v1/chat/completions",
+    "key": "sk-1234567890",
+    "models": [
+      "moonshot-v1-8k"
+    ]
+  }
+]
+```
+> 🔔 GET 方法不方便传参可以使用 POST
+```bash
+curl -X POST "http://localhost:35123/config" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "key=STORE_PROVIDERS" \
+  -d 'value=[
+  {
+    "brand": "Ollama",
+    "descriptions": "Ollama is a versatile, open-source tool that enables users to run and interact with large language models (LLMs) directly on their local machines. It is recommended to use smaller models such as qwen2:1.5b for real-time translation. https://www.ollama.com/",
+    "domain": "http://192.168.3.11:11434",
+    "path": "/v1/chat/completions",
+    "key": "ollama",
+    "models": [
+      "qwen2:1.5b",
+      "qwen2:2.5b"
+    ]
+  },
+  {
+    "brand": "DeepSeek",
+    "descriptions": "DeepSeek is a cutting-edge AI company that has developed a series of high-performance language models under the DeepSeek LLM brand. Their API pricing is quite affordable. https://www.deepseek.com/",
+    "domain": "https://api.deepseek.com",
+    "path": "/v1/chat/completions",
+    "key": "sk-1234567890",
+    "models": [
+      "deepseek-chat"
+    ]
+  },
+  {
+    "brand": "MoonShot",
+    "descriptions": "Moonshot AI is a prominent Chinese startup that specializes in the development of advanced artificial intelligence technologies, particularly large language models (LLMs) and conversational AI solutions. Please note, the free quota is subject to throttling which may affect the real-time translation experience. https://www.moonshot.cn/",
+    "domain": "https://api.moonshot.cn",
+    "path": "/v1/chat/completions",
+    "key": "sk-1234567890",
+    "models": [
+      "moonshot-v1-8k"
+    ]
+  }
+]'
 ```
 
 - 全量测试用例
