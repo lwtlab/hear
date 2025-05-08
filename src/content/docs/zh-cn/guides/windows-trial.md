@@ -13,11 +13,17 @@ AI Hear 底层技术与 Ollama 底层技术同源，理论上 Ollama 支持的 N
 
 点击 [Ollama 支持的显卡列表](https://github.com/ollama/ollama/blob/main/docs/gpu.md) 查看 Ollama 支持的显卡列表。
 
+已知问题：NVIDIA 50 系列未适配。
+
 ## 下载
 
 ### Github 下载地址
 
 https://github.com/lwtlab/hear/releases
+
+### 百度网盘
+
+https://pan.baidu.com/s/1h1MdVzrpyhkagjuJSQJQdg?pwd=dzat
 
 ## 反馈
 
