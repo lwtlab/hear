@@ -462,6 +462,7 @@ data: {"status":"completed","model":"base"}
 | STORE_USE_MODEL | string | 使用的模型 | 如：tiny | 模型名，请严格按照模型列表中已经下载的 model 设置 |
 | STORE_GPU_ID | string | 选在使用的 GPU | 如："0" |  |
 | STORE_VAD_ENABLED | boolean | 开启 VAD | 如：true |  |
+| STORE_CAPTION_VISABLE | boolean | 是否显示字幕 | 如：true |  |
 | STORE_TRANSLATOR_ENGINE_V1 | array | 翻译引擎配置 |  | 详细介绍如下 |
 | STORE_PROVIDERS | array | LLM 提供者配置 |  | 详细介绍如下 |
 
@@ -620,6 +621,10 @@ curl "http://localhost:35123/config?key=STORE_GPU_ID&value=0"
 # STORE_VAD_ENABLED
 curl "http://localhost:35123/config?key=STORE_VAD_ENABLED"
 curl "http://localhost:35123/config?key=STORE_VAD_ENABLED&value=true"
+
+# STORE_CAPTION_VISABLE
+curl "http://localhost:35123/config?key=STORE_CAPTION_VISABLE"
+curl "http://localhost:35123/config?key=STORE_CAPTION_VISABLE&value=true"
 
 # STORE_TRANSLATOR_ENGINE_V1
 curl "http://localhost:35123/config?key=STORE_TRANSLATOR_ENGINE_V1" 
@@ -836,6 +841,8 @@ eventSource.addEventListener("translate", (e) => {
     "959": 0.06783906370401382
 }
 ```
+
+> 注意⚠️：采样率都为 48000Hz。处理的时候区分下 microphone 是每秒回 48000 个点，其他的是分多次回，每次 960 个点。
 
 ## 五、附录
 
