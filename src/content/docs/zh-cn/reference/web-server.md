@@ -42,6 +42,9 @@ curl "http://localhost:35123/download?model=base"
 curl "http://localhost:35123/config?key=STORE_USE_MODEL"
 # 设置 set
 curl "http://localhost:35123/config?key=STORE_USE_MODEL&value=tiny"
+
+# 8、获取某个时间段的音频样本[可选]
+curl "http://localhost:35123/samples?start=0.000&end=0.500"
 ```
 
 ## 三、接口
@@ -631,6 +634,53 @@ curl "http://localhost:35123/config?key=STORE_TRANSLATOR_ENGINE_V1"
 
 # STORE_PROVIDERS
 curl "http://localhost:35123/config?key=STORE_PROVIDERS"
+```
+
+### 8、/samples - 获取音频数据
+
+> 获取某个时间段的音频数据。采样率固定为 48kHZ。
+
+- method `GET` `POST`
+
+- request
+
+| 参数名 | 类型 | 描述 | 是否必须 | 默认值 | 备注 |
+| ------ | ---- | ---- | -------- | ------ | ---- |
+| start | number | 开始时间 | 是 |  | 开始时间：0.000 |
+| end | number | 结束时间 | 是 |  | 结束时间: 0.500 |
+
+- response
+
+| 参数名  | 类型   | 描述     |
+| ------- | ------ | -------- |
+| code    | int    | 状态码   |
+| message | string | 描述信息 |
+| data    | object | 音频数据     |
+
+
+```json
+{
+  "code": 200,
+  "message": "get samples success",
+  "data": [
+    0,
+    0,
+    ...
+    -0.000056416422012262046,
+    -0.000010201700206380337,
+    0.00002678551390999928,
+    0.00019265383889432997,
+    0.0004740342847071588,
+    0.0007094581960700452,
+    0.0006482700118795037,
+    -0.000025427318178117275,
+    -0.0011815381003543735,
+    -0.001975413877516985,
+    ...
+    0.04307695850729942,
+    0.04568144306540489
+  ]
+}
 ```
 
 
