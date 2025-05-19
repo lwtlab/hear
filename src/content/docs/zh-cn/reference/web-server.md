@@ -655,7 +655,7 @@ curl "http://localhost:35123/config?key=STORE_PROVIDERS"
 | ------- | ------ | -------- |
 | code    | int    | 状态码   |
 | message | string | 描述信息 |
-| data    | object | 音频数据     |
+| data    | array | 音频数据     |
 
 
 ```json
@@ -681,6 +681,106 @@ curl "http://localhost:35123/config?key=STORE_PROVIDERS"
     0.04568144306540489
   ]
 }
+```
+
+> 如果需要将音频数据保存到文件，可以使用下面的参考代码
+
+```js
+const fs = require('fs');
+const axios = require('axios'); // 需要安装 axios: npm install axios
+
+// WAV 文件参数
+const SAMPLE_RATE = 48000;
+const BITS_PER_SAMPLE = 16;
+const NUM_CHANNELS = 1;
+
+async function fetchAudioData(start, end) {
+    try {
+        const url = `http://localhost:35123/samples?start=${start}&end=${end}`;
+        const response = await axios.get(url);
+        return response.data.data;
+    } catch (error) {
+        console.error('Error fetching audio data:', error);
+        throw error;
+    }
+}
+
+function createWavHeader(dataLength) {
+    const byteRate = SAMPLE_RATE * NUM_CHANNELS * BITS_PER_SAMPLE / 8;
+    const blockAlign = NUM_CHANNELS * BITS_PER_SAMPLE / 8;
+    const subChunk2Size = dataLength * NUM_CHANNELS * BITS_PER_SAMPLE / 8;
+    const chunkSize = 36 + subChunk2Size;
+    
+    const buffer = Buffer.alloc(44);
+    
+    // RIFF header
+    buffer.write('RIFF', 0);
+    buffer.writeUInt32LE(chunkSize, 4);
+    buffer.write('WAVE', 8);
+    
+    // fmt subchunk
+    buffer.write('fmt ', 12);
+    buffer.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
+    buffer.writeUInt16LE(1, 20); // AudioFormat (1 for PCM)
+    buffer.writeUInt16LE(NUM_CHANNELS, 22);
+    buffer.writeUInt32LE(SAMPLE_RATE, 24);
+    buffer.writeUInt32LE(byteRate, 28);
+    buffer.writeUInt16LE(blockAlign, 32);
+    buffer.writeUInt16LE(BITS_PER_SAMPLE, 34);
+    
+    // data subchunk
+    buffer.write('data', 36);
+    buffer.writeUInt32LE(subChunk2Size, 40);
+    
+    return buffer;
+}
+
+function floatToInt16(floatValue) {
+    // 将 -1.0 到 1.0 的浮点数转换为 16 位有符号整数
+    return Math.max(-32768, Math.min(32767, Math.round(floatValue * 32767)));
+}
+
+function audioDataToWavBuffer(audioData) {
+    // 创建数据缓冲区
+    const buffer = Buffer.alloc(audioData.length * 2); // 16-bit = 2 bytes per sample
+    
+    // 将浮点音频数据转换为 16 位整数并写入缓冲区
+    for (let i = 0; i < audioData.length; i++) {
+        const intValue = floatToInt16(audioData[i]);
+        buffer.writeInt16LE(intValue, i * 2);
+    }
+    
+    return buffer;
+}
+
+async function generateWavFile(startTime, endTime, outputFile) {
+    try {
+        // 1. 获取音频数据
+        const audioData = await fetchAudioData(startTime, endTime);
+        console.log(`Fetched ${audioData.length} samples`);
+        
+        // 2. 创建 WAV 文件内容
+        const dataBuffer = audioDataToWavBuffer(audioData);
+        const header = createWavHeader(audioData.length);
+        
+        // 3. 合并头和音频数据
+        const wavBuffer = Buffer.concat([header, dataBuffer]);
+        
+        // 4. 写入文件
+        fs.writeFileSync(outputFile, wavBuffer);
+        console.log(`WAV file saved to ${outputFile}`);
+    } catch (error) {
+        console.error('Error generating WAV file:', error);
+    }
+}
+
+// 使用示例
+const START_TIME = "0.000";
+const END_TIME = "2.500";
+const OUTPUT_FILE = "output.wav";
+
+generateWavFile(START_TIME, END_TIME, OUTPUT_FILE);
+
 ```
 
 
