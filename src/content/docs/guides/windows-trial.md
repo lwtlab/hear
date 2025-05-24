@@ -13,6 +13,14 @@ AI Hear's underlying technology shares the same foundation as Ollama, so theoret
 
 Click [Ollama supported graphics cards list](https://github.com/ollama/ollama/blob/main/docs/gpu.md) to view the graphics cards supported by Ollama.
 
+### NVIDIA Graphics Driver Requirements
+
+To achieve optimal performance, we suggest using the newest graphics driver compatible with your Windows system.
+
+Minimum Requirement: Your graphics driver's maximum supported CUDA version, as shown in the red box when running nvidia-smi.exe, must be 11.3 or higher.
+
+![image-20250524142330547](../../../assets/image-20250524142330547.png)
+
 ## Download
 
 ### GitHub Download Link
@@ -36,4 +44,4 @@ Send feedback via email.
 
 ### Getting Runtime Logs
 
-![image-20240823113252734](./assets/image-20240823113252734.png)
+![image-20240823113252734](../../../assets/image-20240823113252734.png)
