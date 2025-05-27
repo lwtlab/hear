@@ -607,6 +607,13 @@ curl -X POST "http://localhost:35123/config" \
     ]
   }
 ]'
+
+# 设置输出目录
+
+curl -X POST "http://localhost:35123/config" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "key=STORE_OUTPUT_DIR" \
+  -d 'value=/Users/chenfeng/Library/Application Support/AIHear/audiofiles'
 ```
 
 - 全量测试用例
@@ -634,6 +641,10 @@ curl "http://localhost:35123/config?key=STORE_TRANSLATOR_ENGINE_V1"
 
 # STORE_PROVIDERS
 curl "http://localhost:35123/config?key=STORE_PROVIDERS"
+
+# STORE_OUTPUT_DIR
+curl "http://localhost:35123/config?key=STORE_OUTPUT_DIR"
+curl "http://localhost:35123/config?key=STORE_OUTPUT_DIR&value=/Users/chenfeng/Desktop/audiofiles"
 ```
 
 ### 8、/samples - 获取音频数据
