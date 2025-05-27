@@ -13,7 +13,13 @@ AI Hear 底层技术与 Ollama 底层技术同源，理论上 Ollama 支持的 N
 
 点击 [Ollama 支持的显卡列表](https://github.com/ollama/ollama/blob/main/docs/gpu.md) 查看 Ollama 支持的显卡列表。
 
-已知问题：NVIDIA 50 系列未适配。
+### NVIDIA 显卡驱动要求
+
+建议您尽可能使用兼容您 Windows 系统的最新的显卡驱动，以达到最佳性能。
+
+最低运行要求：运行 `nvidia-smi.exe`，您的显卡驱动最高支持的 CUDA 版本（见下图红框处）应不低于 11.3。
+
+![image-20250524142330547](../../../../assets/image-20250524142330547.png)
 
 ## 下载
 
@@ -25,6 +31,12 @@ https://github.com/lwtlab/hear/releases
 
 https://pan.baidu.com/s/1h1MdVzrpyhkagjuJSQJQdg?pwd=dzat
 
+## 支持我们
+
+如果你觉得有用，可以[购买激活码](https://checkout.thucydides.net/purchase/AIHear)支持我们。
+
+激活码解锁 15 分钟限制，以及未来的会员功能。
+
 ## 反馈
 
 通过 Discord 反馈问题。
@@ -32,4 +44,4 @@ https://pan.baidu.com/s/1h1MdVzrpyhkagjuJSQJQdg?pwd=dzat
 
 ### 获取运行日志
 
-![image-20240823113252734](./assets/image-20240823113252734.png)
+![image-20240823113252734](../../../../assets/image-20240823113252734.png)
