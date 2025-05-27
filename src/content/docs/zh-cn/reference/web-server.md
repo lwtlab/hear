@@ -463,6 +463,7 @@ data: {"status":"completed","model":"base"}
 | 键名 | 类型 | 描述 | 举例 | 备注 |
 | ---- | ---- | ---- | ------ | ---- |
 | STORE_USE_MODEL | string | 使用的模型 | 如：tiny | 模型名，请严格按照模型列表中已经下载的 model 设置 |
+| STORE_OUTPUT_DIR | string | 转录文件输出路径 |  |  |
 | STORE_GPU_ID | string | 选在使用的 GPU | 如："0" |  |
 | STORE_VAD_ENABLED | boolean | 开启 VAD | 如：true |  |
 | STORE_CAPTION_VISABLE | boolean | 是否显示字幕 | 如：true |  |
