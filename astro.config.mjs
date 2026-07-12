@@ -89,6 +89,20 @@ export default defineConfig({
               },
               link: "/guides/feedback/",
             },
+            {
+              label: "What's new",
+              translations: {
+                "zh-CN": "更新日志",
+              },
+              link: "/guides/changelog/",
+            },
+            {
+              label: "Privacy policy",
+              translations: {
+                "zh-CN": "隐私政策",
+              },
+              link: "/guides/privacy/",
+            },
           ],
         },
         {
