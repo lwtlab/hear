@@ -12,7 +12,8 @@ Last updated: 12 July 2026 · Applies to AI Hear 2.0
 ## What we don't do
 
 - **We don't upload audio.** Microphone and system sound are processed locally.
-- **We don't collect telemetry.** No analytics, no usage tracking, no crash reporting.
+- **We don't collect telemetry.** No analytics, no usage tracking, no behavioural profiling.
+- **Crash reporting is off by default** — it only happens if you turn it on (see below).
 - **There are no accounts.** No sign-up, no user profile on our side.
 - **We don't sell or share** any of your content.
 
@@ -46,6 +47,19 @@ If you buy through the App Store, Apple handles the transaction and we never see
 ### 4. System translation language packs (macOS)
 
 Turning on Apple's on-device translation may cause macOS to download a language pack from Apple. That is the operating system's behaviour and Apple's privacy policy applies; **the translation itself happens on your device**.
+
+### 5. Crash reports — **off by default; nothing is sent unless you turn it on**
+
+Settings → Advanced → "Send crash reports" is **off**. Leave it off and a crash sends nothing, anywhere.
+
+If you do turn it on, then **only when the app crashes** we send to [Sentry](https://sentry.io/) (an error-tracking service):
+
+- the error stack (where in the code it crashed)
+- the app version and your OS version
+
+**Never sent**: your audio, transcripts, translations, AI conversations, or API keys — and no identifier for you or your device. We do not fingerprint devices.
+
+You can turn it back off at any time; sending **stops immediately**.
 
 ## Local connections
 

@@ -33,7 +33,7 @@ description: What changed in AI Hear 2.0, compared to 1.x.
 
 **Storage.** Recordings are stored as Opus — roughly an eighth the size of WAV. Settings shows what models, recordings, logs, and caches each cost you, and clears logs and caches in one click.
 
-**Privacy.** 2.0 collects no telemetry and no crash data. Audio never leaves your device, and transcript text is sent out only if you configure a cloud AI provider yourself — to that provider. See the [privacy policy](/guides/privacy/).
+**Privacy.** 2.0 collects no telemetry. Audio never leaves your device, and transcript text is sent out only if you configure a cloud AI provider yourself — to that provider. Crash reporting is **off by default**; you can opt in under Settings → Advanced (it then sends the error stack and version info on a crash — never audio, transcripts, or API keys). See the [privacy policy](/guides/privacy/).
 
 ### Not back yet
 
