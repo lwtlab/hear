@@ -24,8 +24,12 @@ jobs:
         uses: withastro/action@v2
         with:
           path: . # The root location of your Astro project inside the repository. (optional)
-          node-version: 20 # The specific version of Node that should be used to build your site. Defaults to 20. (optional)
-          package-manager: pnpm@latest # The Node package manager that should be used to install dependencies and build your site. Automatically detected based on your lockfile. (optional)
+          node-version: 22
+          # 钉死版本，别再用 latest——浮动的包管理器会在无人改动仓库的情况下把部署搞挂：
+          # pnpm 先是漂到 11.x（用 node:sqlite，要 Node >= 22.13，撞死在 Node 20 上），
+          # 抬了 Node 之后又撞上 pnpm 10+ 的 ERR_PNPM_IGNORED_BUILDS（默认拒跑 sharp/esbuild
+          # 的构建脚本并退出 1）。9.x 与本仓库的 lockfileVersion 9.0 同代，两个坑都没有。
+          package-manager: pnpm@9.15.9
 
   deploy:
     needs: build
