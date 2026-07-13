@@ -3,6 +3,25 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.2
+
+**Requires macOS 12 (Monterey) or later.** The browser engine inside AI Hear was updated to a
+current, security-supported version, and it no longer runs on macOS 11. If you are on macOS 11,
+stay on beta.1 until you can update macOS.
+
+**Your API keys are now write-only.** A saved key is shown masked (`••••••1234`) and can be
+replaced, but never read back — not by the settings page, and not by anything else running in the
+interface. Keys stay encrypted in the system keychain and never leave the app's core.
+
+**Security hardening.** A round of fixes from a security audit: the interface can no longer reach
+past the app's own boundary, outbound requests are restricted (plain `http://` is now allowed only
+to your own machine, for local model servers), and the packaged app ignores developer overrides.
+
+**Fixed: API keys could be permanently lost.** If macOS ever asked for keychain permission and you
+declined — which can happen after moving to a new Mac — every saved provider key was silently
+erased. They are now preserved; declining just means that provider is unavailable until you allow
+access and restart.
+
 ## 2.0
 
 2.0 is a rewrite, not an upgrade. 1.x was a live-caption overlay. 2.0 adds **dictation**, **file transcription**, a **library**, and **local AI** — what you capture no longer disappears when the window closes.
