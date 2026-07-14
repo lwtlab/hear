@@ -3,6 +3,19 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.3
+
+**Automatic updates now work.** From this version on, AI Hear checks for new releases on its own and
+installs them quietly on quit — no more coming back here to download by hand. (beta.1 users: you'll
+still need to grab this one manually, one last time.)
+
+**More security hardening.** A second security-audit pass: internal source and build paths no longer
+ship inside the app; a saved API key can't be redirected to another server even by hostile in-app
+code; file transcription only accepts real media files, not arbitrary paths; and the app no longer
+declares camera or Bluetooth permissions it never uses.
+
+Everything else in this release is under the hood — no changes to how you use it.
+
 ## 2.0.0-beta.2
 
 **Requires macOS 12 (Monterey) or later.** The browser engine inside AI Hear was updated to a
