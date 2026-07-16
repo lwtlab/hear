@@ -3,6 +3,21 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.4
+
+**Fixed: offline translation and AI summaries never worked on macOS 12, 13, and 14.** The built-in
+local model server died the instant it started, so every translation and every AI action failed —
+and all you saw was "translation failed", with no way to tell why. It had been built against a newer
+macOS than AI Hear supports. It is now built correctly and runs on every supported version. If
+you're on macOS 15 or later, this never affected you and nothing changes.
+
+**Speech models that need a newer macOS are no longer offered on systems that can't run them.**
+Parakeet and Qwen3-ASR need macOS 14; SenseVoice needs macOS 13. Until now you could download one —
+between 483 MB and 1.6 GB — and only then find out it wouldn't start. They're now hidden where they
+won't run. The Whisper models are unaffected and stay available on every supported version.
+
+Everything else in this release is under the hood — no changes to how you use it.
+
 ## 2.0.0-beta.3
 
 **Automatic updates now work.** From this version on, AI Hear checks for new releases on its own and
