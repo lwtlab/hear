@@ -3,6 +3,29 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.7
+
+**Now requires macOS 13 (Ventura) or later.** The Whisper transcription models moved to a newer,
+faster engine that needs macOS 13. If you're on macOS 12, stay on beta.6 until you can update macOS —
+you won't be offered this update automatically.
+
+**Whisper transcription runs on a newer engine.** The built-in Whisper models now use the same
+up-to-date engine as the other speech models, replacing an older in-app version.
+
+**Fixed: the app could freeze with a busy cursor right at launch.** Startup no longer does heavy work
+on the main thread, so the window is responsive immediately.
+
+**Fixed: "Restart & Install" for an update now installs on the first try.** It used to sometimes leave
+the app running without installing, so you had to quit it by hand first.
+
+**Real-time captions stay a readable length.** During long, continuous speech, Parakeet Realtime now
+wraps up a caption after a bit instead of letting one line grow indefinitely — easier to read and to
+translate. You can adjust this (or turn it off) under Settings → Advanced, alongside a low-latency
+toggle for Apple Speech on macOS 26.
+
+**Menu tidy-up.** "About AIHear" and "Check for Updates" now open the in-app About page (version,
+licenses, and update controls) instead of doing nothing visible.
+
 ## 2.0.0-beta.6
 
 **Fixed: the new real-time model wouldn't download.** In beta.5 the Parakeet Realtime model
