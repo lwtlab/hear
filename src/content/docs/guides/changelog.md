@@ -3,6 +3,29 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.5
+
+**Live captions that appear as you speak.** A new real-time recognition mode shows each word the
+moment it's spoken and stops rewriting it once the sentence is finished — no more flicker as it
+second-guesses itself. Parakeet Realtime (English) runs on macOS 14 and later; on macOS 26 a
+built-in Apple engine brings the same real-time feel to more languages, including Chinese, with no
+model to download. The existing speech models are unchanged and stay available.
+
+**Tell recognition what language you're speaking — and steer it.** For Whisper and Qwen3-ASR you can
+now set the audio language and add a short prompt to guide how it hears you — for example, to prefer
+Simplified or Traditional Chinese. One-click suggestions fill in a sensible prompt for you, and the
+full prompt lives in Settings. Engines that don't use these options simply don't show them.
+
+**Check for updates when you want, and install on your terms.** There's now a "Check for updates"
+button, and when one is ready you choose when to install it instead of having it applied on quit.
+This also fixes a case where an update could finish downloading but never actually install.
+
+**Playback and search fixes.** Seeking inside a recording now works reliably; the floating caption
+window first appears centered along the bottom of the screen; and following playback no longer pulls
+the view away from a search result you're reading.
+
+Everything else in this release is under the hood.
+
 ## 2.0.0-beta.4
 
 **Fixed: offline translation and AI summaries never worked on macOS 12, 13, and 14.** The built-in
