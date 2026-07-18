@@ -3,6 +3,25 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.6
+
+**Fixed: the new real-time model wouldn't download.** In beta.5 the Parakeet Realtime model
+reported a checksum error and couldn't be installed — so real-time captions couldn't be used at
+all. It downloads and runs correctly now.
+
+**Fixed: the app felt busy for a moment right after launch.** Startup no longer blocks on a
+background task, so the window is responsive right away.
+
+**Fixed: checking for updates failed behind a proxy.** Update checks now go through your configured
+proxy, the same one the in-app connection test uses.
+
+**Added: "Check for Updates" in the menu bar.** You can now check from the AIHear menu, not only from
+Settings → About.
+
+**All speech models are now listed — even ones your Mac can't run yet.** Each shows the macOS version
+it needs (for example, Apple's built-in real-time engine shows "Requires macOS 26"), so you can see
+what's available and what it takes to use it. Models your system supports work exactly as before.
+
 ## 2.0.0-beta.5
 
 **Live captions that appear as you speak.** A new real-time recognition mode shows each word the
