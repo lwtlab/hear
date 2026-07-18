@@ -3,6 +3,19 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.8
+
+**Smaller download.** A packaging cleanup removed a large amount of unused code that did not need to ship, so the download and on-disk size are noticeably smaller — with no change to features.
+
+**Security hardening (under the hood).** The interface now loads over a private, self-contained scheme
+instead of local files, and the app runs with tighter system privileges. Nothing looks different; this
+just reduces the app's attack surface.
+
+**One-time reset of a few display preferences.** As a side effect of the change above, a handful of
+on-device interface preferences — caption text size, background opacity, bilingual vs. translation-only
+mode, interface language, and the library's reading-panel layout — return to their defaults once, the
+first time you open this version. Your recordings, transcripts, models, and settings are not affected.
+
 ## 2.0.0-beta.7
 
 **Now requires macOS 13 (Ventura) or later.** The Whisper transcription models moved to a newer,
