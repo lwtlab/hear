@@ -3,6 +3,34 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.9
+
+**Edit your transcripts.** Double-click any line in a recording to fix a word, correct a translation,
+split a line in two, merge it with the next one, or nudge its start and end times. Undo and redo work
+throughout, and "Restore original transcript" always brings back exactly what the model produced —
+your edits live alongside the original rather than replacing it, so re-translating never overwrites
+wording you fixed by hand.
+
+**A setup wizard on first launch.** New installs now start with a short guided setup: it recommends a
+transcription model for your language and machine, downloads it, then checks it by transcribing a
+short built-in clip — so you find out the model works before you rely on it, not during your first
+real recording. It asks only for the permissions the things you picked actually need; if you only
+transcribe files, it asks for nothing.
+
+**More accurate file transcription and dictation.** Audio is no longer chopped up before being sent
+to the model when the model can segment it itself. Measured on meeting audio, this improves accuracy
+by roughly 3–6 points across every engine we ship, and it's faster too. Dictation gains the most:
+short phrases that previously came back empty now transcribe correctly.
+
+**A much better Japanese model.** A dedicated Japanese model is now available and recommended for
+Japanese, roughly halving the error rate compared with the previous suggestion.
+
+**Fixed: Parakeet TDT v3 was listed as supporting Japanese.** It doesn't — feeding it Japanese
+produced nonsense. It's now listed for the languages it actually handles.
+
+**Smaller download, wider compatibility.** The Whisper/SenseVoice helper is now built from source:
+about half the size, and no longer the component forcing a newer macOS than the rest of the app.
+
 ## 2.0.0-beta.8
 
 **Smaller download.** A packaging cleanup removed a large amount of unused code that did not need to ship, so the download and on-disk size are noticeably smaller — with no change to features.
