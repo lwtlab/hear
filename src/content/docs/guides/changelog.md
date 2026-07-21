@@ -3,6 +3,29 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.10
+
+**Captions are now split into sentences.** The Parakeet models used to sometimes produce one
+enormous caption spanning 30 seconds live, or minutes in a transcribed file, when speech ran on
+without long pauses. Captions now break on sentence punctuation (and a length cap), so they stay
+readable and translate cleanly — matching how the Whisper models already behaved.
+
+**Rename a recording.** Click a recording's title to rename it; the list updates immediately. (This
+never worked before — the rename box silently did nothing.)
+
+**Faster first caption.** After you pick a real-time model, the app quietly warms up its engine in the
+background, so the first caption appears sooner when you press Start.
+
+**Fixed: streaming models were offered where they don't work.** "Apple Speech" and "Parakeet
+Realtime" no longer appear in the file-transcription model list — they're real-time-only, and picking
+one there used to just error.
+
+**Fixed: Parakeet Realtime dropped the first word of a new sentence.** After a pause, the start of the
+next sentence could get eaten at the boundary. It now carries that audio over.
+
+**Recordings remember how they were made.** File transcriptions and dictations now record which model
+and engine produced them, alongside real-time sessions — useful when comparing results.
+
 ## 2.0.0-beta.9
 
 **Edit your transcripts.** Double-click any line in a recording to fix a word, correct a translation,
