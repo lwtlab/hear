@@ -3,6 +3,32 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.11
+
+**Real-time captions no longer drop words — or whole sentences.** On continuous speech the Parakeet
+models could eat the opening words of a sentence ("And so, my fellow…" losing "And so"), and
+occasionally drop an entire sentence after the model briefly mis-guessed a sentence boundary. Both are
+fixed — captions keep the full sentence, from its true start.
+
+**Language and prompt are now set per scenario.** Live captions, file transcription, and dictation each
+keep their own source language and prompt, instead of sharing one — so a Chinese meeting glossary and
+an English podcast file no longer overwrite each other.
+
+**Switch the source language on the spot.** A source-language control now sits in the live caption bar
+and the file library, so you can change what language you're transcribing without opening settings.
+It's locked while a transcription is running.
+
+**A VAD switch for file transcription.** File transcription has its own voice-activity-detection
+toggle now (off by default — measured best for accuracy). The live-captions switch is unchanged.
+
+**Models compile in the background, and the list shows their status.** The Parakeet models need a
+one-time ~30-second setup for the Neural Engine the first time they run. The app now does that in the
+background right after download, and the model list shows whether a model is compiled — so you no
+longer hit that wait when you press Start.
+
+**Set your dictation shortcut during setup.** The first-run wizard now covers dictation and lets you
+record your own shortcut right there, instead of only showing the default.
+
 ## 2.0.0-beta.10
 
 **Captions are now split into sentences.** The Parakeet models used to sometimes produce one
