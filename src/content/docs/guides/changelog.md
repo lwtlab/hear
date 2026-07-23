@@ -3,6 +3,18 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0-beta.12
+
+**Parakeet Realtime no longer clips a word at every segment break.** When you speak continuously,
+without natural pauses, the engine has to cut segments on a timer — and at each of those cuts the
+word being spoken lost its tail ("embed" came out as "emb", "contradictions" as "con"). The engine
+now finishes decoding what it has already heard before closing a segment, so the word on the
+boundary lands whole and the next segment starts cleanly after it.
+
+**Fixed: recordings made with Parakeet Realtime had a collapsed timeline.** Each segment's
+timestamps restarted from zero, so a 140-second session was saved as if it were 7 seconds long, and
+its captions came out in the wrong order. Timestamps are now absolute across the whole session.
+
 ## 2.0.0-beta.11
 
 **Real-time captions no longer drop words — or whole sentences.** On continuous speech the Parakeet
