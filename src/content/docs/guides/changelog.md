@@ -3,6 +3,21 @@ title: What's new
 description: What changed in AI Hear 2.0, compared to 1.x.
 ---
 
+## 2.0.0
+
+**AI Hear 2.0 is now stable.** This release brings together live captions, file transcription,
+dictation, a searchable recording library, editable transcripts, offline translation and AI
+actions, and five local speech-recognition engines in one local-first Mac app.
+
+The stable build includes every fix from the beta series: a guided first-run setup, per-scenario
+language and prompt controls, more accurate file transcription and dictation, sentence-sized live
+captions, faster model startup, smaller downloads, automatic updates, and the Parakeet boundary and
+timeline fixes from beta.12.
+
+Requires macOS 13 (Ventura) or later on an Apple Silicon Mac. The direct-download build includes
+dictation; the sandboxed Mac App Store build omits dictation but keeps live captions, file
+transcription, translation, AI actions, the library, and all supported local models.
+
 ## 2.0.0-beta.12
 
 **Parakeet Realtime no longer clips a word at every segment break.** When you speak continuously,
@@ -254,7 +269,6 @@ access and restart.
 Things 1.x had that 2.0 doesn't — noted, just not built:
 
 - **Subtitle font color** — 2.0 exposes font size and background opacity only
-- **Choosing the spoken language** — 2.0 lets the engine auto-detect it
 - **Picking a GPU** (the Windows multi-GPU option in 1.x)
 - **LAN caption server** (the SSE endpoint and QR code in the 1.x custom build)
 - **SOCKS proxies** — 2.0's proxy setting is HTTP(S) only
