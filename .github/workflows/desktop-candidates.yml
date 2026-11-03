@@ -81,10 +81,11 @@ jobs:
         run: node ci/private-step.mjs typecheck app pnpm typecheck
       - name: Unit tests
         run: node ci/private-step.mjs unit app pnpm test:unit
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build native core required by GUI export
+        run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Scripted GUI regression (not real audio or packaged acceptance)
         run: node ci/private-step.mjs scripted-gui app pnpm e2e
-      - uses: dtolnay/rust-toolchain@stable
-        if: inputs.mode == 'candidate'
       - name: Build native dependencies from pinned sources
         if: inputs.mode == 'candidate'
         run: node ci/private-step.mjs native app bash scripts/ci-macos-native.sh

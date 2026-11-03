@@ -6,7 +6,7 @@
 
 | 模式 | 执行内容 | 不包含 |
 | --- | --- | --- |
-| checks | 依赖契约、类型、单测、开发构建脚本化 Electron E2E | 安装包、真实采音与模型验收 |
+| checks | 依赖契约、类型、确定性单测、原生 core 构建、开发构建脚本化 Electron E2E | 安装包、真实采音与模型验收 |
 | candidate | checks 加原生输入源码构建和 macOS arm64 未签名 DMG/ZIP | 签名、公证、发布、原包完整 UI 和真实音频验收 |
 
 在公开仓库配置以下 Secrets。SSH deploy keys 分别只读授权到对应私有仓库，不授予写权限；不要复用官网构建凭据。
@@ -29,7 +29,7 @@ gh run view <run-id> --repo lwtlab/hear
 gh run watch <run-id> --repo lwtlab/hear --exit-status
 ```
 
-先跑 checks，再选择同一对 SHA、`mode=candidate`。原生构建需要 macOS arm64 runner、完整 Xcode/Metal 工具链，构建期间下载锁定依赖，超时失败也必须保留失败记录。candidate 不缓存或复用本机未记录的原生产物。当前不提供 Windows/Linux/Intel 目标。
+先跑 checks，再选择同一对 SHA、`mode=candidate`。原生构建需要 macOS arm64 runner、完整 Xcode/Metal 工具链，构建期间下载锁定依赖，超时失败也必须保留失败记录。checks 从锁定源码构建原生 core（批量导出仍依赖它），candidate 继续构建其余 daemon。candidate 不复用本机未记录的原生产物。当前不提供 Windows/Linux/Intel 目标。
 
 ## 候选下载与验收
 
