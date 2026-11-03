@@ -1,6 +1,8 @@
 name: Hear desktop candidates
-run-name: Hear macOS arm64 ${{ inputs.mode }}
+run-name: Hear macOS arm64 ${{ inputs.mode || 'checks' }}
 on:
+  push:
+    branches: [ci/verify-macos]
   workflow_dispatch:
     inputs:
       app_ref:
@@ -27,9 +29,9 @@ jobs:
       run:
         shell: bash
     env:
-      APP_REF: ${{ inputs.app_ref }}
-      CORE_REF: ${{ inputs.core_ref }}
-      BUILD_MODE: ${{ inputs.mode }}
+      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
+      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      BUILD_MODE: ${{ inputs.mode || 'checks' }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -53,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: XUJiahua/lwt-app-hear2
-          ref: ${{ inputs.app_ref }}
+          ref: ${{ env.APP_REF }}
           path: app
           ssh-key: ${{ secrets.HEAR_APP_SOURCE_SSH_KEY }}
           persist-credentials: false
@@ -61,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: lwtlab/lwt-core
-          ref: ${{ inputs.core_ref }}
+          ref: ${{ env.CORE_REF }}
           path: core
           ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
           persist-credentials: false

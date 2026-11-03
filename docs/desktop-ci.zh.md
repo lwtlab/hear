@@ -55,3 +55,7 @@ node ci/decrypt-log.mjs <new-log-dir>/build-log.enc.json <private-key.pem> <new-
 在公开仓库 checkout 中执行解密；输出文件必须不存在，权限为 0600。不要把明文提交到公开仓库或公开 issue。解密失败要核对私钥与运行使用的公钥是否配对。
 
 重跑整个 run 会沿用原输入；修改 app/core 需要新调度并记录新 run。平台尚未实现时记录 NOT RUN/BLOCKED，不用 demo 或禁用沙箱的开发启动替代产品验证。
+
+## 新工作流合并前验证
+
+工作流尚未进入默认分支时，GitHub 可能拒绝按文件名手动调度。维护者可先设置 `HEAR_VERIFY_APP_SHA`、`HEAR_VERIFY_CORE_SHA` 两个仓库变量（均为已审阅的完整 SHA），再将已审阅的工作流提交推送到公开仓库的 `ci/verify-macos` 分支。该分支的 push 仅执行 checks，不能产生候选或发布；普通分支和外部 PR 不执行私有构建。记录此次运行的实际源码与工作流 SHA。它用于验证新工作流，无需提前合并或修改官网 main。
