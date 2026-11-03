@@ -7,6 +7,9 @@ const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' 
 const appRef = git('app', 'rev-parse', 'HEAD');
 const coreRef = git('core', 'rev-parse', 'HEAD');
 if (appRef !== process.env.APP_REF || coreRef !== process.env.CORE_REF) throw new Error('Checkout identity mismatch');
+for (const cwd of ['app', 'core']) {
+  if (git(cwd, 'status', '--porcelain=v1', '--untracked-files=normal')) throw new Error('Source checkout changed during build');
+}
 mkdirSync('candidate', { recursive: true });
 const assets = [];
 for (const name of readdirSync(release).sort()) {

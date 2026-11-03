@@ -18,6 +18,8 @@ function setup(t) {
   writeFileSync(join(release, 'latest-mac.yml'), 'private feed omitted');
   writeFileSync(join(release, 'source.ts'), 'private source omitted');
   writeFileSync(join(root, 'app/apps/desktop/package.json'), '{"version":"2.0.0"}');
+  git(join(root, 'app'), 'add', '.');
+  git(join(root, 'app'), '-c', 'user.email=test@example.invalid', '-c', 'user.name=Test', 'commit', '-m', 'candidate inputs');
   return { root, release, env: { ...process.env, APP_REF: git(join(root, 'app'), 'rev-parse', 'HEAD'), CORE_REF: git(join(root, 'core'), 'rev-parse', 'HEAD') } };
 }
 test('candidate contains only explicit packages and verifiable source/checksum metadata', t => {
@@ -33,5 +35,11 @@ test('candidate rejects mismatched source and symlink assets', t => {
   const { root, release, env } = setup(t);
   assert.notEqual(spawnSync(process.execPath, [script], { cwd: root, env: { ...env, APP_REF: '0'.repeat(40) } }).status, 0);
   const dmg = join(release, 'AIHear-2.0.0-arm64.dmg'); rmSync(dmg); symlinkSync(join(release, 'source.ts'), dmg);
+  assert.notEqual(spawnSync(process.execPath, [script], { cwd: root, env }).status, 0);
+});
+
+test('candidate rejects tracked source mutation during build', t => {
+  const { root, env } = setup(t);
+  writeFileSync(join(root, 'app/apps/desktop/package.json'), '{"version":"9.9.9"}');
   assert.notEqual(spawnSync(process.execPath, [script], { cwd: root, env }).status, 0);
 });
