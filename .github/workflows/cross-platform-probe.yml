@@ -10,6 +10,11 @@ on:
       core_ref:
         required: true
         type: string
+      native_check:
+        description: Run native cargo check; disable only for runtime packaging rechecks
+        required: true
+        default: true
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -70,7 +75,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -82,6 +87,7 @@ jobs:
         run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
       - id: native
         name: Native core compile feasibility (failure retained)
+        if: github.event_name == 'push' || inputs.native_check
         continue-on-error: true
         run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
       - name: Package diagnostic runtime (not a release)
