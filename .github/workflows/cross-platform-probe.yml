@@ -25,8 +25,14 @@ on:
         required: true
         default: false
         type: boolean
+      reuse_native:
+        description: Reuse a reviewed exact-core native artifact (Windows only); expiry requires a fresh build
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
+  actions: read
 jobs:
   probe:
     strategy:
@@ -99,8 +105,14 @@ jobs:
         run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
       - id: native_build
         name: Build and load native module
-        if: inputs.functional_runtime
+        if: inputs.functional_runtime && !inputs.reuse_native
         run: node ci/private-step.mjs native-build app bash scripts/ci-core.sh
+      - id: native_reuse
+        name: Verify and load reviewed exact-source native runtime
+        if: inputs.functional_runtime && inputs.reuse_native
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/private-step.mjs native-reuse core node ../ci/native-reuse.mjs
       - uses: actions/upload-artifact@v4
         if: inputs.functional_runtime
         with:
@@ -151,6 +163,7 @@ jobs:
         env:
           NATIVE_OUTCOME: ${{ steps.native.outcome }}
           NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
+          NATIVE_REUSE_OUTCOME: ${{ steps.native_reuse.outcome }}
           FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}

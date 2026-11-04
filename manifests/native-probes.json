@@ -1,0 +1,11 @@
+{
+  "win32-x64": {
+    "coreRef": "105cc26b2110840f189fc08acde0091317fa77bb",
+    "appRef": "f920247bcc21720a5931433404cfc20e9cca3d15",
+    "workflowRef": "79d117a660fe9ddf8472bf0964867f7efdf9dc17",
+    "runId": "41846942733",
+    "artifactId": "13332371617",
+    "archiveSha256": "074ace9d071c0a5ec086e9d9abdf69f6f6b5cf8bbe7a71873af43dd94605fce2",
+    "filename": "hear-core.win32-x64-msvc.node"
+  }
+}
