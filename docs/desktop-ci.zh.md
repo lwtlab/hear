@@ -29,7 +29,35 @@ gh run view <run-id> --repo lwtlab/hear
 gh run watch <run-id> --repo lwtlab/hear --exit-status
 ```
 
-先跑 checks，再选择同一对 SHA、`mode=candidate`。原生构建需要 macOS arm64 runner、完整 Xcode/Metal 工具链，构建期间下载锁定依赖，超时失败也必须保留失败记录。checks 从锁定源码构建原生 core（批量导出仍依赖它），candidate 继续构建其余 daemon。candidate 不复用本机未记录的原生产物。当前不提供 Windows/Linux/Intel 目标。
+先跑 checks，再选择同一对 SHA、`mode=candidate`。原生构建需要 macOS arm64 runner、完整 Xcode/Metal 工具链，构建期间下载锁定依赖，超时失败也必须保留失败记录。checks 从锁定源码构建原生 core（批量导出仍依赖它），candidate 继续构建其余 daemon。candidate 不复用本机未记录的原生产物。此正式候选工作流不提供 Windows/Linux/Intel 目标；三端诊断运行时使用下节独立工作流。
+
+## 三端诊断与真实文件转录
+
+`cross-platform-probe.yml` 支持 `all`、`win32-x64`、`linux-x64`、`darwin-arm64`。它生成独立 AIHearProbe 资料目录的诊断运行目录，尚不提供正式 Windows/Linux 安装器或签名。
+
+```sh
+gh workflow run cross-platform-probe.yml --repo lwtlab/hear --ref <workflow-ref> \
+  -f app_ref=<app-sha> -f core_ref=<core-sha> -f target=all \
+  -F native_check=true -F functional_runtime=true -F reuse_native=false
+```
+
+`functional_runtime=true` 实际构建并加载 `.node`、从锁定源码编译 CPU ASR 和 LGPL FFmpeg，随后验证批准样本的真实文件识别、保存重开和 TXT/SRT/VTT 导出。`functional_runtime=false` 仅用于前端/打包可行性检查，不能作为识别成功证据。默认仍会检查 `cargo check`，其失败通过 continue-on-error 保留；类型和文件功能结果必须分别核对。真实功能阶段失败会令 job 失败。
+
+Windows 引擎重试可显式选择 `target=win32-x64`、`native_check=false`、`functional_runtime=true`、`reuse_native=true`。它只复用 `manifests/native-probes.json` 中维护者已审核的精确 core/platform 对应物，校验原 artifact ZIP SHA-256 后重新加载导出。不同 core、架构或过期产物会失败；需要重新构建或审核新绑定。`probe.json` 分开记录原 native run、工作流、摘要、当前跳过的检查和实际复用结果，不能写成当前 run 重新编译成功。
+
+```sh
+gh run download <run-id> --repo lwtlab/hear \
+  --name hear-probe-<platform>-<run-id> --dir <new-probe-dir>
+gh run download <run-id> --repo lwtlab/hear \
+  --name hear-probe-encrypted-<platform>-<run-id> --dir <new-log-dir>
+node ci/decrypt-log.mjs <new-log-dir>/build-log.enc.json <private-key.pem> <new-output.log>
+```
+
+诊断档案、独立原生模块和加密日志均保留 7 天。核对 artifact ID/digest，再核对 `probe.json` 的 app/core/workflow SHA、平台、tar SHA-256 和字节数；有 `file-functional/` 时一并核对结果和截图。解压要拒绝越界路径。不要只凭打包 job 的最终颜色判断全部能力。所有私有步骤仍使用加密日志。
+
+将核验过的目录传到实机后，从私有应用仓使用 `scripts/platform-functional-smoke.mjs` 复用同一文件流程。模型权重先核对目录固定的摘要；可用获准的内置英文或中文样本，不采集用户会议。该脚本重定向原生保存框，使用产品 IPC 和真实原生推理，不能算人工操作文件选择框。
+
+Windows SSH 服务会话不是桌面，需以已登录用户 Interactive/Limited 任务启动。Linux 需定位实际 Wayland/X11 会话；Playwright Electron 可能自动加 `--no-sandbox`。保存有效参数，另跑无调试参数的普通启动；沙箱失败保持失败，不修改主机安全策略或以调试模式替代交付验收。详情见私有应用仓的 `docs/CROSS-PLATFORM-TRANSCRIPTION.md` 与父仓库 QA 记录。
 
 ## 候选下载与验收
 

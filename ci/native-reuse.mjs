@@ -24,7 +24,9 @@ async function main() {
   if (download.status !== 0) throw new Error('Pinned native artifact unavailable; build fresh');
   if (createHash('sha256').update(download.stdout).digest('hex') !== entry.archiveSha256) throw new Error('Native artifact digest mismatch');
   writeFileSync(archive, download.stdout);
-  const unpack = spawnSync('tar', ['-xf', archive, '-C', work]);
+  // Git Bash's GNU tar cannot read ZIP; use the Windows bsdtar explicitly.
+  const tar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
+  const unpack = spawnSync(tar, ['-xf', archive, '-C', work]);
   if (unpack.status !== 0) throw new Error('Cannot unpack native artifact');
   const core = resolve('hear-core');
   copyFileSync(join(work, entry.filename), join(core, entry.filename));
