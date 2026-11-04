@@ -20,6 +20,11 @@ on:
         required: true
         default: true
         type: boolean
+      functional_runtime:
+        description: Build and load native module plus CPU ASR and bundled LGPL FFmpeg (strict)
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 jobs:
@@ -29,7 +34,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.target == 'win32-x64' && '[{"id":"win32-x64","os":"windows-2025"}]' || inputs.target == 'linux-x64' && '[{"id":"linux-x64","os":"ubuntu-22.04"}]' || inputs.target == 'darwin-arm64' && '[{"id":"darwin-arm64","os":"macos-26"}]' || '[{"id":"linux-x64","os":"ubuntu-22.04"},{"id":"win32-x64","os":"windows-2025"},{"id":"darwin-arm64","os":"macos-26"}]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -77,7 +82,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -92,11 +97,45 @@ jobs:
         if: github.event_name == 'push' || inputs.native_check
         continue-on-error: true
         run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
+      - name: Build and load native module
+        if: inputs.functional_runtime
+        run: node ci/private-step.mjs native-build app bash scripts/ci-core.sh
+      - name: Initialize pinned ASR engine sources
+        if: inputs.functional_runtime
+        run: node ci/private-step.mjs asr-source app git submodule update --init --recursive -- apps/desktop/vendor/whisper.cpp
+      - name: Build CPU ASR engines
+        if: inputs.functional_runtime
+        run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
+      - uses: msys2/setup-msys2@v2
+        if: inputs.functional_runtime && runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          install: >-
+            make nasm diffutils
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build LGPL audio decoder (Windows)
+        if: inputs.functional_runtime && runner.os == 'Windows'
+        shell: msys2 {0}
+        run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
+      - name: Build LGPL audio decoder (Unix)
+        if: inputs.functional_runtime && runner.os != 'Windows'
+        run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
+      - name: Stage native runtime dependencies
+        if: inputs.functional_runtime
+        run: |
+          node ci/private-step.mjs asr-stage app/apps/desktop node scripts/stage-myserver.mjs
+          node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
       - name: Package diagnostic runtime (not a release)
         run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
       - name: Collect runtime and explicit probe outcomes
         env:
           NATIVE_OUTCOME: ${{ steps.native.outcome }}
+          FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
         run: node ci/probe-collect.mjs
       - uses: actions/upload-artifact@v4

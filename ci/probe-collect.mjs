@@ -13,6 +13,6 @@ const bytes = readFileSync(join('probe-artifact', archive));
 writeFileSync('probe-artifact/probe.json', JSON.stringify({ schemaVersion: 1, diagnostic: true, releaseAcceptance: false,
  platform, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF,
  workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID,
- nativeCheck: process.env.NATIVE_OUTCOME, typecheck: process.env.TYPECHECK_OUTCOME,
+ nativeCheck: process.env.NATIVE_OUTCOME, functionalRuntime: process.env.FUNCTIONAL_RUNTIME === "true", typecheck: process.env.TYPECHECK_OUTCOME,
  archive, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length,
  limitation: 'Diagnostic configuration and isolated product name; native cargo check is separate from packaged module availability; no real speech or capture acceptance.' }, null, 2));
