@@ -8,7 +8,7 @@ const folder = readdirSync(root).find(x => x.endsWith('-unpacked') || x === 'mac
 if (!folder) throw new Error('No diagnostic runtime directory');
 mkdirSync('probe-artifact', { recursive: true });
 const archive = `AIHearProbe-${platform}.tar.gz`;
-execFileSync('tar', ['-czf', join(process.cwd(), 'probe-artifact', archive), '-C', root, folder]);
+execFileSync('tar', ['-czf', join('probe-artifact', archive), '-C', root, folder]);
 const bytes = readFileSync(join('probe-artifact', archive));
 writeFileSync('probe-artifact/probe.json', JSON.stringify({ schemaVersion: 1, diagnostic: true, releaseAcceptance: false,
  platform, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF,

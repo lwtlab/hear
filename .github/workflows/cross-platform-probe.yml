@@ -10,6 +10,11 @@ on:
       core_ref:
         required: true
         type: string
+      target:
+        required: true
+        default: all
+        type: choice
+        options: [all, linux-x64, win32-x64, darwin-arm64]
       native_check:
         description: Run native cargo check; disable only for runtime packaging rechecks
         required: true
@@ -22,10 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {id: linux-x64, os: ubuntu-22.04}
-          - {id: win32-x64, os: windows-2025}
-          - {id: darwin-arm64, os: macos-26}
+        include: ${{ fromJSON(inputs.target == 'win32-x64' && '[{"id":"win32-x64","os":"windows-2025"}]' || inputs.target == 'linux-x64' && '[{"id":"linux-x64","os":"ubuntu-22.04"}]' || inputs.target == 'darwin-arm64' && '[{"id":"darwin-arm64","os":"macos-26"}]' || '[{"id":"linux-x64","os":"ubuntu-22.04"},{"id":"win32-x64","os":"windows-2025"},{"id":"darwin-arm64","os":"macos-26"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
