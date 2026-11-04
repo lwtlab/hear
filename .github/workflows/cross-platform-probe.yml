@@ -30,6 +30,12 @@ on:
         required: true
         default: false
         type: boolean
+      file_models:
+        description: Real model families to verify (SenseVoice also exercises VAD)
+        required: true
+        default: whisper
+        type: choice
+        options: [whisper, whisper-and-sensevoice]
 permissions:
   contents: read
   actions: read
@@ -158,7 +164,11 @@ jobs:
       - id: file_functional
         name: Real packaged file transcription and export
         if: inputs.functional_runtime
-        run: node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
+        env:
+          CI_FILE_MODELS: ${{ inputs.file_models || 'whisper' }}
+        run: |
+          node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
+          node ci/file-outcomes.mjs
       - name: Collect runtime and explicit probe outcomes
         env:
           NATIVE_OUTCOME: ${{ steps.native.outcome }}

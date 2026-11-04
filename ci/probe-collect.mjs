@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, mkdirSync, writeFileSync, existsSync, copyFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, writeFileSync, existsSync, copyFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 const platform = `${process.platform}-${process.arch}`;
 const root = 'app/apps/desktop/probe-release';
@@ -12,7 +12,8 @@ execFileSync('tar', ['-czf', join('probe-artifact', archive), '-C', root, folder
 const functional = join(process.env.RUNNER_TEMP, 'hear-file-functional/evidence');
 if (existsSync(join(functional, 'result.json'))) {
   mkdirSync('probe-artifact/file-functional', { recursive: true });
-  for (const name of readdirSync(functional).filter(n => /\.(?:json|png|txt|vtt|srt)$/.test(n))) {
+  for (const name of readdirSync(functional, { recursive: true }).filter(n => /\.(?:json|png|txt|vtt|srt)$/.test(n) && lstatSync(join(functional, n)).isFile())) {
+    mkdirSync(join('probe-artifact/file-functional', name, '..'), { recursive: true });
     copyFileSync(join(functional, name), join('probe-artifact/file-functional', name));
   }
 }

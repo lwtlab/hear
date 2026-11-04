@@ -38,10 +38,11 @@ gh run watch <run-id> --repo lwtlab/hear --exit-status
 ```sh
 gh workflow run cross-platform-probe.yml --repo lwtlab/hear --ref <workflow-ref> \
   -f app_ref=<app-sha> -f core_ref=<core-sha> -f target=all \
-  -F native_check=true -F functional_runtime=true -F reuse_native=false
+  -F native_check=true -F functional_runtime=true -F reuse_native=false \
+  -f file_models=whisper-and-sensevoice
 ```
 
-`functional_runtime=true` 实际构建并加载 `.node`、从锁定源码编译 CPU ASR 和 LGPL FFmpeg，随后验证批准样本的真实文件识别、保存重开和 TXT/SRT/VTT 导出。`functional_runtime=false` 仅用于前端/打包可行性检查，不能作为识别成功证据。默认仍会检查 `cargo check`，其失败通过 continue-on-error 保留；类型和文件功能结果必须分别核对。真实功能阶段失败会令 job 失败。
+`functional_runtime=true` 实际构建并加载 `.node`、从锁定源码编译 CPU ASR 和 LGPL FFmpeg，随后验证批准样本的真实文件识别、保存重开和 TXT/SRT/VTT 导出。`functional_runtime=false` 仅用于前端/打包可行性检查，不能作为识别成功证据。默认仍会检查 `cargo check`，其失败通过 continue-on-error 保留；类型和文件功能结果必须分别核对。真实功能阶段失败会令 job 失败。`file_models=whisper-and-sensevoice` 同时验证中文 SenseVoice/VAD；独立结果门禁拒绝仅用英文成功代替中文覆盖。Windows 诊断进程 PATH 只保留系统目录，避免构建机已安装的 DLL 掩盖漏打包；真正的干净系统检查仍是独立门禁。
 
 Windows 引擎重试可显式选择 `target=win32-x64`、`native_check=false`、`functional_runtime=true`、`reuse_native=true`。它只复用 `manifests/native-probes.json` 中维护者已审核的精确 core/platform 对应物，校验原 artifact ZIP SHA-256 后重新加载导出。不同 core、架构或过期产物会失败；需要重新构建或审核新绑定。`probe.json` 分开记录原 native run、工作流、摘要、当前跳过的检查和实际复用结果，不能写成当前 run 重新编译成功。
 
