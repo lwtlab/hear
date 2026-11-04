@@ -1,0 +1,108 @@
+name: Hear cross-platform feasibility
+on:
+  push:
+    branches: [ci/verify-platforms]
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        required: true
+        type: string
+      core_ref:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {id: linux-x64, os: ubuntu-22.04}
+          - {id: win32-x64, os: windows-2025}
+          - {id: darwin-arm64, os: macos-26}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
+      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate sources and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {validateDispatch} from './ci/dispatch.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          validateDispatch({appRef:process.env.APP_REF,coreRef:process.env.CORE_REF,mode:'checks'});
+          encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: XUJiahua/lwt-app-hear2
+          ref: ${{ env.APP_REF }}
+          path: app
+          ssh-key: ${{ secrets.HEAR_APP_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config
+      - run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - id: types
+        continue-on-error: true
+        run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - name: Frontend build
+        run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
+      - name: Initialize native source dependencies
+        run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
+      - id: native
+        name: Native core compile feasibility (failure retained)
+        continue-on-error: true
+        run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
+      - name: Package diagnostic runtime (not a release)
+        run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
+      - name: Collect runtime and explicit probe outcomes
+        env:
+          NATIVE_OUTCOME: ${{ steps.native.outcome }}
+          TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+        run: node ci/probe-collect.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hear-probe-${{ matrix.id }}-${{ github.run_id }}
+          path: probe-artifact/
+          retention-days: 7
+          if-no-files-found: error
+      - if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-probe-encrypted-${{ matrix.id }}-${{ github.run_id }}
+          path: diagnostics/*.enc.json
+          if-no-files-found: ignore
+          retention-days: 7
