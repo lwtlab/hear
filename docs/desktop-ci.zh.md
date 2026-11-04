@@ -33,7 +33,7 @@ gh run watch <run-id> --repo lwtlab/hear --exit-status
 
 ## 三端诊断与真实文件转录
 
-`cross-platform-probe.yml` 支持 `all`、`win32-x64`、`linux-x64`、`darwin-arm64`。它生成独立 AIHearProbe 资料目录的诊断运行目录，尚不提供正式 Windows/Linux 安装器或签名。
+`cross-platform-probe.yml` 支持 `all`、`win32-x64`、`linux-x64`、`darwin-arm64`。它生成独立 AIHearProbe 资料目录的诊断运行目录，Linux 功能模式另产出独立诊断 deb，正式安装器与签名仍不包含在内。
 
 ```sh
 gh workflow run cross-platform-probe.yml --repo lwtlab/hear --ref <workflow-ref> \
@@ -43,6 +43,8 @@ gh workflow run cross-platform-probe.yml --repo lwtlab/hear --ref <workflow-ref>
 ```
 
 `functional_runtime=true` 实际构建并加载 `.node`、从锁定源码编译 CPU ASR 和 LGPL FFmpeg，随后验证批准样本的真实文件识别、保存重开和 TXT/SRT/VTT 导出。`functional_runtime=false` 仅用于前端/打包可行性检查，不能作为识别成功证据。默认仍会检查 `cargo check`，其失败通过 continue-on-error 保留；类型和文件功能结果必须分别核对。真实功能阶段失败会令 job 失败。`file_models=whisper-and-sensevoice` 同时验证中文 SenseVoice/VAD；独立结果门禁拒绝仅用英文成功代替中文覆盖。Windows 诊断进程 PATH 只保留系统目录，避免构建机已安装的 DLL 掩盖漏打包；真正的干净系统检查仍是独立门禁。
+
+Linux 功能模式使用 Ubuntu 24.04，标准 deb 安装到 `/opt/AIHearProbe`，由 electron-builder 的安装/卸载脚本维护仅匹配自身路径的 AppArmor profile。CI 显式保持 `kernel.apparmor_restrict_unprivileged_userns=1`，先以普通用户无参数启动，检查原生可见窗口、应用 profile、renderer 的 Seccomp=2 / NoNewPrivs=1，再以 `chromiumSandbox:true` 运行文件转录。缺少 AppArmor、错误 profile、禁用沙箱或没有普通启动证据都必须失败；安装与识别成功分别记录。该安装器需要管理员安装权限，不代表 AppImage 可免安装启动，也不代表 Ubuntu 22.04/其他发行版已验收。deb 的摘要和字节数在 `probe.json.installers` 中，普通启动在 `file-functional/linux-installed/ordinary-launch.json`。
 
 Windows 引擎重试可显式选择 `target=win32-x64`、`native_check=false`、`functional_runtime=true`、`reuse_native=true`。它只复用 `manifests/native-probes.json` 中维护者已审核的精确 core/platform 对应物，校验原 artifact ZIP SHA-256 后重新加载导出。不同 core、架构或过期产物会失败；需要重新构建或审核新绑定。`probe.json` 分开记录原 native run、工作流、摘要、当前跳过的检查和实际复用结果，不能写成当前 run 重新编译成功。
 

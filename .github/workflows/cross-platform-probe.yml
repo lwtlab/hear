@@ -44,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.target == 'win32-x64' && '[{"id":"win32-x64","os":"windows-2025"}]' || inputs.target == 'linux-x64' && '[{"id":"linux-x64","os":"ubuntu-22.04"}]' || inputs.target == 'darwin-arm64' && '[{"id":"darwin-arm64","os":"macos-26"}]' || '[{"id":"linux-x64","os":"ubuntu-22.04"},{"id":"win32-x64","os":"windows-2025"},{"id":"darwin-arm64","os":"macos-26"}]') }}
+        include: ${{ fromJSON(inputs.target == 'win32-x64' && '[{"id":"win32-x64","os":"windows-2025"}]' || inputs.target == 'linux-x64' && '[{"id":"linux-x64","os":"ubuntu-24.04"}]' || inputs.target == 'darwin-arm64' && '[{"id":"darwin-arm64","os":"macos-26"}]' || '[{"id":"linux-x64","os":"ubuntu-24.04"},{"id":"win32-x64","os":"windows-2025"},{"id":"darwin-arm64","os":"macos-26"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     defaults:
@@ -94,7 +94,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb x11-utils apparmor
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -158,6 +158,15 @@ jobs:
           node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
       - name: Package diagnostic runtime (not a release)
         run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
+      - id: linux_install
+        name: Linux deb installation and ordinary sandboxed launch
+        if: runner.os == 'Linux' && inputs.functional_runtime
+        run: |
+          sudo aa-status --enabled
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+          node ci/private-step.mjs diagnostic-deb app node scripts/platform-probe-package.mjs --linux-deb
+          node ci/private-step.mjs diagnostic-install app bash -c 'packages=(./apps/desktop/probe-release/*.deb); test "${#packages[@]}" -eq 1 && sudo apt-get install -y --no-install-recommends "${packages[0]}"'
+          node ci/private-step.mjs ordinary-launch app xvfb-run --auto-servernum python3 scripts/linux-installed-smoke.py "$RUNNER_TEMP/hear-file-functional/evidence/linux-installed"
       - name: Check type safety for functional runtime
         if: inputs.functional_runtime && steps.types.outcome != 'success'
         run: exit 1
@@ -166,6 +175,8 @@ jobs:
         if: inputs.functional_runtime
         env:
           CI_FILE_MODELS: ${{ inputs.file_models || 'whisper' }}
+          HEAR_PROBE_REQUIRE_SANDBOX: ${{ runner.os == 'Linux' && '1' || '0' }}
+          HEAR_PROBE_EXECUTABLE: ${{ runner.os == 'Linux' && '/opt/AIHearProbe/aihear-probe' || '' }}
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
@@ -177,6 +188,7 @@ jobs:
           FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+          LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
         run: node ci/probe-collect.mjs
       - uses: actions/upload-artifact@v4
         with:

@@ -1,10 +1,10 @@
 name: Hear CI infrastructure
 on:
   pull_request:
-    paths: ['ci/**', '.github/workflows/desktop-*.yml']
+    paths: ['ci/**', '.github/workflows/*.yml']
   push:
     branches: [main]
-    paths: ['ci/**', '.github/workflows/desktop-*.yml']
+    paths: ['ci/**', '.github/workflows/*.yml']
 permissions:
   contents: read
 jobs:

@@ -18,9 +18,15 @@ if (existsSync(join(functional, 'result.json'))) {
   }
 }
 const bytes = readFileSync(join('probe-artifact', archive));
+const installers = readdirSync(root).filter(n => n.endsWith('.deb')).map(name => {
+  const data = readFileSync(join(root, name));
+  copyFileSync(join(root, name), join('probe-artifact', name));
+  return { name, bytes: data.length, sha256: createHash('sha256').update(data).digest('hex') };
+});
 writeFileSync('probe-artifact/probe.json', JSON.stringify({ schemaVersion: 1, diagnostic: true, releaseAcceptance: false,
  platform, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF,
  workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID,
  nativeCheck: process.env.NATIVE_OUTCOME, nativeBuild: process.env.NATIVE_BUILD_OUTCOME, nativeReuse: process.env.NATIVE_REUSE_OUTCOME, nativeOrigin: existsSync("core/hear-core/native-origin.json") ? JSON.parse(readFileSync("core/hear-core/native-origin.json", "utf8")) : undefined, fileFunctional: process.env.FILE_FUNCTIONAL_OUTCOME, functionalRuntime: process.env.FUNCTIONAL_RUNTIME === "true", typecheck: process.env.TYPECHECK_OUTCOME,
  archive, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length,
- limitation: 'Diagnostic configuration and isolated product name. See nativeBuild/fileFunctional outcomes separately from nativeCheck. No microphone/system capture, dictation, release installer or signing acceptance.' }, null, 2));
+ installers, linuxInstall: process.env.LINUX_INSTALL_OUTCOME,
+ limitation: 'Diagnostic configuration and isolated product name. See nativeBuild/fileFunctional/linuxInstall outcomes separately from nativeCheck. Linux deb is a diagnostic installer. No microphone/system capture, dictation, release installer or signing acceptance.' }, null, 2));
