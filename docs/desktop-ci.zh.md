@@ -58,7 +58,7 @@ node ci/decrypt-log.mjs <new-log-dir>/build-log.enc.json <private-key.pem> <new-
 
 将核验过的目录传到实机后，从私有应用仓使用 `scripts/platform-functional-smoke.mjs` 复用同一文件流程。模型权重先核对目录固定的摘要；可用获准的内置英文或中文样本，不采集用户会议。该脚本重定向原生保存框，使用产品 IPC 和真实原生推理，不能算人工操作文件选择框。
 
-Windows SSH 服务会话不是桌面，需以已登录用户 Interactive/Limited 任务启动。Linux 需定位实际 Wayland/X11 会话；Playwright Electron 可能自动加 `--no-sandbox`。保存有效参数，另跑无调试参数的普通启动；沙箱失败保持失败，不修改主机安全策略或以调试模式替代交付验收。详情见私有应用仓的 `docs/CROSS-PLATFORM-TRANSCRIPTION.md` 与父仓库 QA 记录。
+Windows SSH 服务会话不是桌面，需以已登录用户 Interactive/Limited 任务启动。任务主体从 `WindowsIdentity.GetCurrent().User.Value` 获取 SID；不要依赖 SSH 环境里的 USERDOMAIN/USERNAME 拼接，否则可能无法映射账户。Linux 需定位实际 Wayland/X11 会话；Playwright Electron 可能自动加 `--no-sandbox`。保存有效参数，另跑无调试参数的普通启动；沙箱失败保持失败，不修改主机安全策略或以调试模式替代交付验收。详情见私有应用仓的 `docs/CROSS-PLATFORM-TRANSCRIPTION.md` 与父仓库 QA 记录。
 
 ## 候选下载与验收
 
