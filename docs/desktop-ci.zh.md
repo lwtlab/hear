@@ -46,6 +46,8 @@ gh workflow run cross-platform-probe.yml --repo lwtlab/hear --ref <workflow-ref>
 
 Linux 功能模式使用 Ubuntu 24.04，标准 deb 安装到 `/opt/AIHearProbe`，由 electron-builder 的安装/卸载脚本维护仅匹配自身路径的 AppArmor profile。CI 显式保持 `kernel.apparmor_restrict_unprivileged_userns=1`，先以普通用户无参数启动，检查原生可见窗口、应用 profile、renderer 的 Seccomp=2 / NoNewPrivs=1，再以 `chromiumSandbox:true` 运行文件转录。缺少 AppArmor、错误 profile、禁用沙箱或没有普通启动证据都必须失败；安装与识别成功分别记录。该安装器需要管理员安装权限，不代表 AppImage 可免安装启动，也不代表 Ubuntu 22.04/其他发行版已验收。deb 的摘要和字节数在 `probe.json.installers` 中，普通启动在 `file-functional/linux-installed/ordinary-launch.json`。
 
+Linux 安装器排障可显式选择 `target=linux-x64`、`functional_runtime=true`、`native_check=false`、`reuse_linux_runtime=true`。该模式从 `manifests/linux-runtime-probes.json` 恢复已审阅且 core 完全一致的旧运行目录，逐项校验 artifact ZIP、原 app/core/workflow/run、tar 摘要与字节数；过期或不符直接失败。`app_ref` 在此模式指新安装/QA 脚本源码，不能当作新二进制来源。产物的 `appRef` 保留原应用来源，`qaAppRef`、`workflowRef` 和 `runtimeOrigin` 分开记录本轮脚本、封装工作流和旧运行来源，原生编译标为 skipped。它只加快安装与沙箱复验，不替代正式源码构建。即使普通启动失败，也归档已生成的运行包、安装包和受控 QA JSON，便于定位；私有启动 stderr 仍只进加密日志。
+
 Windows 引擎重试可显式选择 `target=win32-x64`、`native_check=false`、`functional_runtime=true`、`reuse_native=true`。它只复用 `manifests/native-probes.json` 中维护者已审核的精确 core/platform 对应物，校验原 artifact ZIP SHA-256 后重新加载导出。不同 core、架构或过期产物会失败；需要重新构建或审核新绑定。`probe.json` 分开记录原 native run、工作流、摘要、当前跳过的检查和实际复用结果，不能写成当前 run 重新编译成功。
 
 ```sh

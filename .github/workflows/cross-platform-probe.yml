@@ -30,6 +30,11 @@ on:
         required: true
         default: false
         type: boolean
+      reuse_linux_runtime:
+        description: Installer-only replay of the reviewed Linux runtime; keeps original binary provenance
+        required: true
+        default: false
+        type: boolean
       file_models:
         description: Real model families to verify (SenseVoice also exercises VAD)
         required: true
@@ -57,6 +62,10 @@ jobs:
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      REUSE_LINUX_RUNTIME: ${{ inputs.reuse_linux_runtime || 'false' }}
+      PROBE_TARGET: ${{ inputs.target }}
+      PROBE_NATIVE_CHECK: ${{ inputs.native_check }}
+      PROBE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -71,6 +80,7 @@ jobs:
           import {encryptLog} from './ci/log-crypto.mjs';
           validateDispatch({appRef:process.env.APP_REF,coreRef:process.env.CORE_REF,mode:'checks'});
           encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
+          if (process.env.REUSE_LINUX_RUNTIME === 'true' && (process.env.PROBE_TARGET !== 'linux-x64' || process.env.PROBE_NATIVE_CHECK !== 'false' || process.env.PROBE_FUNCTIONAL_RUNTIME !== 'true')) throw new Error('Linux installer replay requires linux-x64, native_check=false, functional_runtime=true');
           JS
       - uses: actions/checkout@v4
         with:
@@ -101,8 +111,10 @@ jobs:
         continue-on-error: true
         run: node ci/private-step.mjs typecheck app pnpm typecheck
       - name: Frontend build
+        if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
       - name: Initialize native source dependencies
+        if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
       - id: native
         name: Native core compile feasibility (failure retained)
@@ -111,7 +123,7 @@ jobs:
         run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
       - id: native_build
         name: Build and load native module
-        if: inputs.functional_runtime && !inputs.reuse_native
+        if: inputs.functional_runtime && !inputs.reuse_native && !inputs.reuse_linux_runtime
         run: node ci/private-step.mjs native-build app bash scripts/ci-core.sh
       - id: native_reuse
         name: Verify and load reviewed exact-source native runtime
@@ -120,17 +132,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node ci/private-step.mjs native-reuse core node ../ci/native-reuse.mjs
       - uses: actions/upload-artifact@v4
-        if: inputs.functional_runtime
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
         with:
           name: hear-native-${{ matrix.id }}-${{ github.run_id }}
           path: core/hear-core/hear-core.*.node
           retention-days: 7
           if-no-files-found: error
       - name: Initialize pinned ASR engine sources
-        if: inputs.functional_runtime
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
         run: node ci/private-step.mjs asr-source app git submodule update --init --recursive -- apps/desktop/vendor/whisper.cpp
       - name: Build CPU ASR engines
-        if: inputs.functional_runtime
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
       - uses: msys2/setup-msys2@v2
         if: inputs.functional_runtime && runner.os == 'Windows'
@@ -149,14 +161,22 @@ jobs:
         shell: msys2 {0}
         run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
       - name: Build LGPL audio decoder (Unix)
-        if: inputs.functional_runtime && runner.os != 'Windows'
+        if: inputs.functional_runtime && runner.os != 'Windows' && !inputs.reuse_linux_runtime
         run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
       - name: Stage native runtime dependencies
-        if: inputs.functional_runtime
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
         run: |
           node ci/private-step.mjs asr-stage app/apps/desktop node scripts/stage-myserver.mjs
           node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
-      - name: Package diagnostic runtime (not a release)
+      - id: linux_runtime_reuse
+        name: Restore reviewed Linux runtime for installer-only replay
+        if: inputs.reuse_linux_runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/private-step.mjs linux-runtime-reuse app node ../ci/linux-runtime-reuse.mjs
+      - id: diagnostic_package
+        name: Package diagnostic runtime (not a release)
+        if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
       - id: linux_install
         name: Linux deb installation and ordinary sandboxed launch
@@ -180,7 +200,9 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
-      - name: Collect runtime and explicit probe outcomes
+      - id: collect
+        name: Collect runtime and explicit probe outcomes
+        if: always() && (steps.diagnostic_package.outcome == 'success' || steps.linux_runtime_reuse.outcome == 'success')
         env:
           NATIVE_OUTCOME: ${{ steps.native.outcome }}
           NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
@@ -188,9 +210,11 @@ jobs:
           FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+          LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
         run: node ci/probe-collect.mjs
       - uses: actions/upload-artifact@v4
+        if: always() && steps.collect.outcome == 'success'
         with:
           name: hear-probe-${{ matrix.id }}-${{ github.run_id }}
           path: probe-artifact/
