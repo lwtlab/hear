@@ -82,7 +82,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -97,9 +97,17 @@ jobs:
         if: github.event_name == 'push' || inputs.native_check
         continue-on-error: true
         run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
-      - name: Build and load native module
+      - id: native_build
+        name: Build and load native module
         if: inputs.functional_runtime
         run: node ci/private-step.mjs native-build app bash scripts/ci-core.sh
+      - uses: actions/upload-artifact@v4
+        if: inputs.functional_runtime
+        with:
+          name: hear-native-${{ matrix.id }}-${{ github.run_id }}
+          path: core/hear-core/hear-core.*.node
+          retention-days: 7
+          if-no-files-found: error
       - name: Initialize pinned ASR engine sources
         if: inputs.functional_runtime
         run: node ci/private-step.mjs asr-source app git submodule update --init --recursive -- apps/desktop/vendor/whisper.cpp
@@ -132,9 +140,18 @@ jobs:
           node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
       - name: Package diagnostic runtime (not a release)
         run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
+      - name: Check type safety for functional runtime
+        if: inputs.functional_runtime && steps.types.outcome != 'success'
+        run: exit 1
+      - id: file_functional
+        name: Real packaged file transcription and export
+        if: inputs.functional_runtime
+        run: node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
       - name: Collect runtime and explicit probe outcomes
         env:
           NATIVE_OUTCOME: ${{ steps.native.outcome }}
+          NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
+          FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
         run: node ci/probe-collect.mjs
