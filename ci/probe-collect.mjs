@@ -30,5 +30,6 @@ writeFileSync('probe-artifact/probe.json', JSON.stringify({ schemaVersion: 1, di
  nativeCheck: process.env.NATIVE_OUTCOME, nativeBuild: process.env.NATIVE_BUILD_OUTCOME, nativeReuse: process.env.NATIVE_REUSE_OUTCOME, nativeOrigin: existsSync("core/hear-core/native-origin.json") ? JSON.parse(readFileSync("core/hear-core/native-origin.json", "utf8")) : undefined, fileFunctional: process.env.FILE_FUNCTIONAL_OUTCOME, functionalRuntime: process.env.FUNCTIONAL_RUNTIME === "true", typecheck: process.env.TYPECHECK_OUTCOME,
  archive, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length,
  installers, linuxInstall: process.env.LINUX_INSTALL_OUTCOME,
+ runtimeCleanup: process.env.RUNTIME_CLEANUP_OUTCOME,
  runtimeOrigin, runtimeReuse: process.env.LINUX_RUNTIME_REUSE_OUTCOME,
  limitation: 'Diagnostic configuration and isolated product name. See nativeBuild/fileFunctional/linuxInstall outcomes separately from nativeCheck. Linux deb is a diagnostic installer. No microphone/system capture, dictation, release installer or signing acceptance.' }, null, 2));

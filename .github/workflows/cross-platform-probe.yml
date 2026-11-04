@@ -200,6 +200,10 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
+      - id: runtime_cleanup
+        name: Remove isolated installed runtime processes before runner cleanup
+        if: always() && runner.os == 'Linux' && inputs.functional_runtime
+        run: node ci/private-step.mjs runtime-cleanup app sudo env GITHUB_ACTIONS=true python3 scripts/linux-runtime-cleanup.py "$RUNNER_TEMP/hear-file-functional/evidence/linux-installed/runtime-cleanup.json"
       - id: collect
         name: Collect runtime and explicit probe outcomes
         if: always() && (steps.diagnostic_package.outcome == 'success' || steps.linux_runtime_reuse.outcome == 'success')
@@ -212,6 +216,7 @@ jobs:
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
         run: node ci/probe-collect.mjs
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'
