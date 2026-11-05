@@ -1,0 +1,14 @@
+{
+  "linux-x64": {
+    "appRef": "4c77c35a81c16a16eaf6080cd62dfc2a67a68960",
+    "coreRef": "105cc26b2110840f189fc08acde0091317fa77bb",
+    "workflowRef": "1d42556fb5f9e68998ecf658fd04c75ed67360fc",
+    "runId": "41941289122",
+    "archive": "AIHearProbe-linux-x64.tar.gz",
+    "sha256": "639f434111c598eef7ac224933b01dcd5023124f5c77f1a14261963cb264794d",
+    "bytes": 154546202,
+    "artifactId": "13377011607",
+    "archiveSha256": "326d6de4d2a8b5a3ae1941a9459ed0cdf2757792e8f0689c9c8182c72a04e982",
+    "reviewedFor": "QA harness repair using exact original runtime; build, installation and file ASR passed; first system-audio setup failed before app capture"
+  }
+}

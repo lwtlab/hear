@@ -1,0 +1,275 @@
+name: Hear cross-platform feasibility
+on:
+  push:
+    branches: [ci/verify-platforms]
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        required: true
+        type: string
+      core_ref:
+        required: true
+        type: string
+      target:
+        required: true
+        default: all
+        type: choice
+        options: [all, linux-x64, win32-x64, darwin-arm64]
+      native_check:
+        description: Run native cargo check; disable only for runtime packaging rechecks
+        required: true
+        default: true
+        type: boolean
+      functional_runtime:
+        description: Build and load native module plus CPU ASR and bundled LGPL FFmpeg (strict)
+        required: true
+        default: false
+        type: boolean
+      reuse_native:
+        description: Reuse a reviewed exact-core native artifact; expiry requires a fresh build
+        required: true
+        default: false
+        type: boolean
+      reuse_linux_runtime:
+        description: Reuse reviewed Linux runtime for installer and capture QA; keeps original binary provenance
+        required: true
+        default: false
+        type: boolean
+      file_models:
+        description: Real model families to verify (SenseVoice also exercises VAD)
+        required: true
+        default: whisper
+        type: choice
+        options: [whisper, whisper-and-sensevoice]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.target == 'win32-x64' && '[{"id":"win32-x64","os":"windows-2025"}]' || inputs.target == 'linux-x64' && '[{"id":"linux-x64","os":"ubuntu-24.04"}]' || inputs.target == 'darwin-arm64' && '[{"id":"darwin-arm64","os":"macos-26"}]' || '[{"id":"linux-x64","os":"ubuntu-24.04"},{"id":"win32-x64","os":"windows-2025"},{"id":"darwin-arm64","os":"macos-26"}]') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
+      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      REUSE_LINUX_RUNTIME: ${{ inputs.reuse_linux_runtime || 'false' }}
+      PROBE_TARGET: ${{ inputs.target }}
+      PROBE_NATIVE_CHECK: ${{ inputs.native_check }}
+      PROBE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate sources and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {validateDispatch} from './ci/dispatch.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          validateDispatch({appRef:process.env.APP_REF,coreRef:process.env.CORE_REF,mode:'checks'});
+          encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
+          if (process.env.REUSE_LINUX_RUNTIME === 'true' && (process.env.PROBE_TARGET !== 'linux-x64' || process.env.PROBE_NATIVE_CHECK !== 'false' || process.env.PROBE_FUNCTIONAL_RUNTIME !== 'true')) throw new Error('Linux installer replay requires linux-x64, native_check=false, functional_runtime=true');
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: XUJiahua/lwt-app-hear2
+          ref: ${{ env.APP_REF }}
+          path: app
+          ssh-key: ${{ secrets.HEAR_APP_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux native build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
+          packages=(xvfb x11-utils apparmor pulseaudio pulseaudio-utils)
+          if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev libpulse-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
+          timeout 300 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y "${packages[@]}"
+      - run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - id: types
+        continue-on-error: true
+        run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - id: recording_duration
+        name: Recording duration and persistence regression
+        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-duration.test.ts') != ''
+        run: node ci/private-step.mjs recording-duration app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-duration.test.ts apps/desktop/src/main/__tests__/session-recorder.test.ts
+      - id: audio_publication
+        name: Recording audio publication regression
+        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-audio-publication.test.ts') != ''
+        run: node ci/private-step.mjs audio-publication app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-audio-publication.test.ts
+      - name: Frontend build
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
+      - name: Initialize native source dependencies
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
+      - id: source_download
+        name: Pinned source download fallback contract
+        if: runner.os != 'Windows' && hashFiles('app/scripts/source-download.test.mjs') != ''
+        run: node ci/private-step.mjs source-download app node --test scripts/source-download.test.mjs
+      - id: asr_boundaries
+        name: ASR digital-silence and VAD context regressions
+        if: runner.os != 'Windows' && hashFiles('core/crates/asr-command/examples/boundary_probe.rs') != ''
+        run: node ci/private-step.mjs asr-boundaries core node ../ci/asr-boundary-tests.mjs .
+      - id: native
+        name: Native core compile feasibility (failure retained)
+        if: github.event_name == 'push' || inputs.native_check
+        continue-on-error: true
+        run: node ci/private-step.mjs native-check core cargo check -p hear-core --locked
+      - id: native_build
+        name: Build and load native module
+        if: inputs.functional_runtime && !inputs.reuse_native && !inputs.reuse_linux_runtime
+        run: node ci/private-step.mjs native-build app bash scripts/ci-core.sh
+      - id: native_reuse
+        name: Verify and load reviewed exact-source native runtime
+        if: inputs.functional_runtime && inputs.reuse_native
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/private-step.mjs native-reuse core node ../ci/native-reuse.mjs
+      - uses: actions/upload-artifact@v4
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
+        with:
+          name: hear-native-${{ matrix.id }}-${{ github.run_id }}
+          path: core/hear-core/hear-core.*.node
+          retention-days: 7
+          if-no-files-found: error
+      - name: Initialize pinned ASR engine sources
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
+        run: node ci/private-step.mjs asr-source app git submodule update --init --recursive -- apps/desktop/vendor/whisper.cpp
+      - name: Build CPU ASR engines
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
+        run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
+      - uses: msys2/setup-msys2@v2
+        if: inputs.functional_runtime && runner.os == 'Windows'
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          install: >-
+            make nasm diffutils
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build LGPL audio decoder (Windows)
+        if: inputs.functional_runtime && runner.os == 'Windows'
+        shell: msys2 {0}
+        run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
+      - name: Build LGPL audio decoder (Unix)
+        if: inputs.functional_runtime && runner.os != 'Windows' && !inputs.reuse_linux_runtime
+        run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
+      - name: Stage native runtime dependencies
+        if: inputs.functional_runtime && !inputs.reuse_linux_runtime
+        run: |
+          node ci/private-step.mjs asr-stage app/apps/desktop node scripts/stage-myserver.mjs
+          node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
+      - name: Build scoped Linux monitor capture helper
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/apps/desktop/native/pulse-capture.c') != ''
+        run: node ci/private-step.mjs pulse-capture-build app/apps/desktop node scripts/build-pulse-capture.mjs
+      - name: Linux monitor disappearance and no-fallback regression
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/scripts/linux-pulse-isolation.mjs') != ''
+        run: node ci/private-step.mjs pulse-isolation app node scripts/linux-pulse-isolation.mjs "$RUNNER_TEMP/hear-file-functional/evidence/linux-pulse-isolation"
+      - id: linux_runtime_reuse
+        name: Restore reviewed Linux runtime for installer-only replay
+        if: inputs.reuse_linux_runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/private-step.mjs linux-runtime-reuse app node ../ci/linux-runtime-reuse.mjs
+      - id: diagnostic_package
+        name: Package diagnostic runtime (not a release)
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: node ci/private-step.mjs diagnostic-package app node scripts/platform-probe-package.mjs
+      - id: linux_install
+        name: Linux deb installation and ordinary sandboxed launch
+        if: runner.os == 'Linux' && inputs.functional_runtime
+        run: |
+          sudo aa-status --enabled
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=1
+          node ci/private-step.mjs diagnostic-deb app node scripts/platform-probe-package.mjs --linux-deb
+          node ci/private-step.mjs diagnostic-install app bash -c 'packages=(./apps/desktop/probe-release/*.deb); test "${#packages[@]}" -eq 1 && sudo apt-get install -y --no-install-recommends "${packages[0]}"'
+          node ci/private-step.mjs ordinary-launch app xvfb-run --auto-servernum python3 scripts/linux-installed-smoke.py "$RUNNER_TEMP/hear-file-functional/evidence/linux-installed"
+      - name: Check type safety for functional runtime
+        if: inputs.functional_runtime && steps.types.outcome != 'success'
+        run: exit 1
+      - id: file_functional
+        name: Real packaged file transcription and export
+        if: inputs.functional_runtime
+        env:
+          CI_FILE_MODELS: ${{ inputs.file_models || 'whisper' }}
+          HEAR_PROBE_REQUIRE_SANDBOX: ${{ runner.os == 'Linux' && '1' || '0' }}
+          HEAR_PROBE_EXECUTABLE: ${{ runner.os == 'Linux' && '/opt/AIHearProbe/aihear-probe' || '' }}
+        run: |
+          node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
+          node ci/file-outcomes.mjs
+      - id: system_audio
+        name: Linux isolated OS output capture and live captions
+        if: runner.os == 'Linux' && inputs.functional_runtime
+        env:
+          HEAR_PROBE_REQUIRE_SANDBOX: '1'
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          node ci/private-step.mjs system-audio app xvfb-run --auto-servernum node scripts/platform-linux-system-smoke.mjs /opt/AIHearProbe/aihear-probe "$RUNNER_TEMP/hear-file-functional/evidence/linux-system" "$RUNNER_TEMP/hear-file-functional/ggml-tiny.en.bin"
+      - id: runtime_cleanup
+        name: Remove isolated installed runtime processes before runner cleanup
+        if: always() && runner.os == 'Linux' && inputs.functional_runtime
+        run: node ci/private-step.mjs runtime-cleanup app sudo env GITHUB_ACTIONS=true python3 scripts/linux-runtime-cleanup.py "$RUNNER_TEMP/hear-file-functional/evidence/linux-installed/runtime-cleanup.json"
+      - id: collect
+        name: Collect runtime and explicit probe outcomes
+        if: always() && (steps.diagnostic_package.outcome == 'success' || steps.linux_runtime_reuse.outcome == 'success')
+        env:
+          NATIVE_OUTCOME: ${{ steps.native.outcome }}
+          NATIVE_BUILD_OUTCOME: ${{ steps.native_build.outcome }}
+          NATIVE_REUSE_OUTCOME: ${{ steps.native_reuse.outcome }}
+          FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
+          FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+          TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+          RECORDING_DURATION_OUTCOME: ${{ steps.recording_duration.outcome }}
+          AUDIO_PUBLICATION_OUTCOME: ${{ steps.audio_publication.outcome }}
+          ASR_BOUNDARIES_OUTCOME: ${{ steps.asr_boundaries.outcome }}
+          SOURCE_DOWNLOAD_OUTCOME: ${{ steps.source_download.outcome }}
+          LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
+          LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
+          RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
+        run: node ci/probe-collect.mjs
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.collect.outcome == 'success'
+        with:
+          name: hear-probe-${{ matrix.id }}-${{ github.run_id }}
+          path: probe-artifact/
+          retention-days: 7
+          if-no-files-found: error
+      - if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-probe-encrypted-${{ matrix.id }}-${{ github.run_id }}
+          path: diagnostics/*.enc.json
+          if-no-files-found: ignore
+          retention-days: 7

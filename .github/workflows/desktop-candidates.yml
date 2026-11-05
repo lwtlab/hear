@@ -1,0 +1,114 @@
+name: Hear desktop candidates
+run-name: Hear macOS arm64 ${{ inputs.mode || 'checks' }}
+on:
+  push:
+    branches: [ci/verify-macos]
+  workflow_dispatch:
+    inputs:
+      app_ref:
+        description: Full SHA in XUJiahua/lwt-app-hear2
+        required: true
+        type: string
+      core_ref:
+        description: Full SHA in lwtlab/lwt-core
+        required: true
+        type: string
+      mode:
+        description: Checks use scripted E2E; candidate also builds all native inputs and unsigned packages
+        required: true
+        type: choice
+        default: checks
+        options: [checks, candidate]
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
+      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      BUILD_MODE: ${{ inputs.mode || 'checks' }}
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate inputs and encryption before private checkout
+        run: |
+          node --input-type=module <<'JS'
+          import { validateDispatch } from './ci/dispatch.mjs';
+          import { encryptLog } from './ci/log-crypto.mjs';
+          validateDispatch({ appRef: process.env.APP_REF, coreRef: process.env.CORE_REF, mode: process.env.BUILD_MODE });
+          if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('macOS arm64 runner required');
+          encryptLog(Buffer.from('preflight'), process.env.HEAR_LOG_PUBLIC_KEY);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: XUJiahua/lwt-app-hear2
+          ref: ${{ env.APP_REF }}
+          path: app
+          ssh-key: ${{ secrets.HEAR_APP_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+      - name: Link immutable core checkout
+        run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - name: Install locked dependencies
+        run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - name: Test integration tools
+        run: node ci/private-step.mjs integration app pnpm test:integration-tools
+      - name: Typecheck
+        run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - name: Unit tests
+        run: node ci/private-step.mjs unit app pnpm test:unit
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build native core required by GUI export
+        run: node ci/private-step.mjs core app bash scripts/ci-core.sh
+      - name: Scripted GUI regression (not real audio or packaged acceptance)
+        run: node ci/private-step.mjs scripted-gui app pnpm e2e
+      - name: Build native dependencies from pinned sources
+        if: inputs.mode == 'candidate'
+        run: node ci/private-step.mjs native app bash scripts/ci-macos-native.sh
+      - name: Build unsigned original candidate
+        if: inputs.mode == 'candidate'
+        run: node ci/private-step.mjs package app bash scripts/ci-macos-package.sh
+      - name: Collect explicit assets and provenance
+        if: inputs.mode == 'candidate'
+        run: node ci/collect-candidate.mjs
+      - uses: actions/upload-artifact@v4
+        if: success() && inputs.mode == 'candidate'
+        with:
+          name: hear-darwin-arm64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-encrypted-log-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          if-no-files-found: ignore
+          retention-days: 7

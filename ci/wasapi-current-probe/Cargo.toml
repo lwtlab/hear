@@ -1,0 +1,9 @@
+[package]
+name = "hear-wasapi-current-probe"
+version = "0.0.0"
+edition = "2021"
+[dependencies]
+wasapi = "=0.26.0"
+windows = { version = "=0.62.2", features = ["Win32_Media_Audio"] }
+sha2 = "=0.10.9"
+[workspace]
