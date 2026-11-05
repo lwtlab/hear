@@ -104,7 +104,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb x11-utils apparmor
+        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb x11-utils apparmor pulseaudio pulseaudio-utils
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -200,6 +200,14 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
+      - id: system_audio
+        name: Linux isolated OS output capture and live captions
+        if: runner.os == 'Linux' && inputs.functional_runtime && !inputs.reuse_linux_runtime
+        env:
+          HEAR_PROBE_REQUIRE_SANDBOX: '1'
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          node ci/private-step.mjs system-audio app xvfb-run --auto-servernum node scripts/platform-linux-system-smoke.mjs /opt/AIHearProbe/aihear-probe "$RUNNER_TEMP/hear-file-functional/evidence/linux-system" "$RUNNER_TEMP/hear-file-functional/ggml-tiny.en.bin"
       - id: runtime_cleanup
         name: Remove isolated installed runtime processes before runner cleanup
         if: always() && runner.os == 'Linux' && inputs.functional_runtime
@@ -216,6 +224,7 @@ jobs:
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
           RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
         run: node ci/probe-collect.mjs
       - uses: actions/upload-artifact@v4
