@@ -1,5 +1,7 @@
 name: Build WASAPI diagnostic tool
 on:
+  push:
+    branches: [ci/wasapi-diagnostic]
   workflow_dispatch:
 permissions:
   contents: read
