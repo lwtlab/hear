@@ -128,6 +128,10 @@ jobs:
       - name: Initialize native source dependencies
         if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
+      - id: asr_boundaries
+        name: ASR digital-silence and VAD context regressions
+        if: runner.os != 'Windows' && hashFiles('core/crates/asr-command/examples/boundary_probe.rs') != ''
+        run: node ci/private-step.mjs asr-boundaries core node ../ci/asr-boundary-tests.mjs .
       - id: native
         name: Native core compile feasibility (failure retained)
         if: github.event_name == 'push' || inputs.native_check
@@ -242,6 +246,7 @@ jobs:
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
           RECORDING_DURATION_OUTCOME: ${{ steps.recording_duration.outcome }}
           AUDIO_PUBLICATION_OUTCOME: ${{ steps.audio_publication.outcome }}
+          ASR_BOUNDARIES_OUTCOME: ${{ steps.asr_boundaries.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
