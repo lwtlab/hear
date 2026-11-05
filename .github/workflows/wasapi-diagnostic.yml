@@ -1,0 +1,21 @@
+name: Build WASAPI diagnostic tool
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --locked --manifest-path ci/wasapi-probe/Cargo.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hear-wasapi-diagnostic-${{ github.run_id }}
+          path: ci/wasapi-probe/target/release/hear-wasapi-probe.exe
+          if-no-files-found: error
+          retention-days: 7
