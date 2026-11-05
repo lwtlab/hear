@@ -13,6 +13,7 @@ name = "hear-wasapi-current-probe"
 version = "0.0.0"
 dependencies = [
  "wasapi",
+ "windows",
 ]
 
 [[package]]

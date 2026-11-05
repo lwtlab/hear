@@ -22,5 +22,6 @@ jobs:
           path: |
             ci/wasapi-probe/target/release/hear-wasapi-probe.exe
             ci/wasapi-current-probe/target/release/hear-wasapi-current-probe.exe
+            ci/wasapi-current-probe/target/release/hear-wasapi-format-probe.exe
           if-no-files-found: error
           retention-days: 7
