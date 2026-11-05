@@ -114,6 +114,10 @@ jobs:
       - id: types
         continue-on-error: true
         run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - id: recording_duration
+        name: Recording duration and persistence regression
+        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-duration.test.ts') != ''
+        run: node ci/private-step.mjs recording-duration app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-duration.test.ts apps/desktop/src/main/__tests__/session-recorder.test.ts
       - name: Frontend build
         if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
@@ -226,6 +230,7 @@ jobs:
           FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+          RECORDING_DURATION_OUTCOME: ${{ steps.recording_duration.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}

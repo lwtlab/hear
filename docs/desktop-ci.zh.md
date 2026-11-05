@@ -92,3 +92,12 @@ node ci/decrypt-log.mjs <new-log-dir>/build-log.enc.json <private-key.pem> <new-
 ## 新工作流合并前验证
 
 工作流尚未进入默认分支时，GitHub 可能拒绝按文件名手动调度。维护者可先设置 `HEAR_VERIFY_APP_SHA`、`HEAR_VERIFY_CORE_SHA` 两个仓库变量（均为已审阅的完整 SHA），再将已审阅的工作流提交推送到公开仓库的 `ci/verify-macos` 分支。该分支的 push 仅执行 checks，不能产生候选或发布；普通分支和外部 PR 不执行私有构建。记录此次运行的实际源码与工作流 SHA。它用于验证新工作流，无需提前合并或修改官网 main。
+
+
+## 系统音诊断与录音时长回归
+
+`cross-platform-probe.yml` 会对包含 `recording-duration.test.ts` 的应用源码运行录音容器时长与入库回归，在 `probe.json.recordingDuration` 单独记录结果。历史源码没有该测试时记录 skipped；不能因此声称旧包已修复。此检查不要求 functional_runtime，也不表示采音成功。
+
+`wasapi-diagnostic.yml` 只构建诊断工具，不在 CI 采音、不签名、不发布。旧/新 wasapi 绑定、直接格式对照、原生样例播放器与固定源码的微软 ApplicationLoopback 示例各有独立产物。实机只能传入核验过的专属样例播放器 PID，采用 include-tree；不使用默认输出回环或 exclude-tree。记录私有步骤与工具准备错误时，不把准备失败算作产品结论。
+
+Windows 诊断应先在 Interactive/Limited 桌面会话确认自有音频 session 的真实 PID、活动状态、静音、音量和峰值，再比较主进程与实际采音子进程。端点检查也必须来自该交互会话，SSH Session 0 的默认设备不代表桌面默认设备。若未经修改的微软示例也返回零信号，应保留共同失败边界，避免凭猜测升级生产依赖或修改系统设置。
