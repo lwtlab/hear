@@ -1,11 +1,11 @@
 {
   "win32-x64": {
-    "coreRef": "105cc26b2110840f189fc08acde0091317fa77bb",
-    "appRef": "f920247bcc21720a5931433404cfc20e9cca3d15",
-    "workflowRef": "79d117a660fe9ddf8472bf0964867f7efdf9dc17",
-    "runId": "41846942733",
-    "artifactId": "13332371617",
-    "archiveSha256": "074ace9d071c0a5ec086e9d9abdf69f6f6b5cf8bbe7a71873af43dd94605fce2",
+    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
+    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
+    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
+    "runId": "41957210671",
+    "artifactId": "13384202699",
+    "archiveSha256": "19f9b482ad0884aab5b9ddb252a56895fd0d115455abf0ba79a4e69b448c0bf5",
     "filename": "hear-core.win32-x64-msvc.node"
   },
   "linux-x64": {
@@ -16,5 +16,14 @@
     "artifactId": "13383208361",
     "archiveSha256": "81c38be8a32b3d065c1a13a14626308394343799de4afeb6bea008a740f997b0",
     "filename": "hear-core.linux-x64-gnu.node"
+  },
+  "darwin-arm64": {
+    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
+    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
+    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
+    "runId": "41957210671",
+    "artifactId": "13383218722",
+    "archiveSha256": "fd194bb6803fa08207fd986ad83492df214d305c4d389d20437339fc700cb6ee",
+    "filename": "hear-core.darwin-arm64.node"
   }
 }

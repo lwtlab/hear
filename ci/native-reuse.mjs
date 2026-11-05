@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 export function validateNativeReuse(entry, platform, coreRef) {
-  const filename = { 'win32-x64': 'hear-core.win32-x64-msvc.node', 'linux-x64': 'hear-core.linux-x64-gnu.node' }[platform];
+  const filename = { 'win32-x64': 'hear-core.win32-x64-msvc.node', 'linux-x64': 'hear-core.linux-x64-gnu.node', 'darwin-arm64': 'hear-core.darwin-arm64.node' }[platform];
   if (!entry || !filename || !/^[a-f0-9]{40}$/.test(coreRef ?? '') || entry.coreRef !== coreRef
     || entry.filename !== filename
     || !/^[a-f0-9]{64}$/.test(entry.archiveSha256)

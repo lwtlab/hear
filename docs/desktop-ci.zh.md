@@ -106,3 +106,8 @@ Windows 诊断应先在 Interactive/Limited 桌面会话确认自有音频 sessi
 Linux functional CI 对包含新 helper 的源码安装 libpulse-dev，构建随包 monitor 采集程序，并在独立 PulseAudio 服务上运行设备消失/禁止迁移回归。服务只有虚拟输出及一个用于拒绝测试的虚拟 null input，不加载硬件模块。它与实机桌面服务隔离，不能将通过结果写成物理麦克风或完整产品混音验收。
 
 `reuse_native=true` 也支持经过审阅的 Linux x64 GNU binding；仍要求精确 core SHA、原 artifact ZIP 摘要和固定文件名。原生源码变化或工件过期必须重新构建。复用只节省绑定编译，当前应用前端、采音 helper、引擎、解码器与功能检查仍按新源码运行，并记录 nativeReuse 与 nativeBuild 的区别。
+
+
+三端现在都可复用审阅过的精确 core 原生工件：Windows x64 MSVC、Linux x64 GNU、macOS ARM64。每个平台只允许对应的固定文件名，不接受其他架构；仍校验 ZIP 摘要、core SHA、原工作流与运行来源。使用复用的当前构建不会被标为 fresh nativeBuild。
+
+包含 recording-audio-publication.test.ts 的源码还会运行独立音频发布回归，并在 probe.json.audioPublication 记录结果；历史源码跳过该项。该测试验证压缩完成前继续提供 WAV、成功后发布完整 Opus，以及失败不暴露半成品。

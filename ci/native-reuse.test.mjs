@@ -18,3 +18,10 @@ test('Linux reuse is exact-core and GNU-target only', () => {
   assert.throws(() => validateNativeReuse(linux, 'linux-x64', '0'.repeat(40)));
   assert.throws(() => validateNativeReuse({ ...linux, filename: '../binding.node' }, 'linux-x64', entry.coreRef));
 });
+
+test('macOS reuse accepts only the reviewed ARM binding', () => {
+  const mac = { ...entry, filename: 'hear-core.darwin-arm64.node' };
+  assert.equal(validateNativeReuse(mac, 'darwin-arm64', entry.coreRef), mac);
+  assert.throws(() => validateNativeReuse(mac, 'darwin-x64', entry.coreRef));
+  assert.throws(() => validateNativeReuse(mac, 'darwin-arm64', '0'.repeat(40)));
+});

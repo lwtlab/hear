@@ -26,7 +26,7 @@ on:
         default: false
         type: boolean
       reuse_native:
-        description: Reuse a reviewed exact-core Windows/Linux native artifact; expiry requires a fresh build
+        description: Reuse a reviewed exact-core native artifact; expiry requires a fresh build
         required: true
         default: false
         type: boolean
@@ -118,6 +118,10 @@ jobs:
         name: Recording duration and persistence regression
         if: hashFiles('app/apps/desktop/src/main/__tests__/recording-duration.test.ts') != ''
         run: node ci/private-step.mjs recording-duration app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-duration.test.ts apps/desktop/src/main/__tests__/session-recorder.test.ts
+      - id: audio_publication
+        name: Recording audio publication regression
+        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-audio-publication.test.ts') != ''
+        run: node ci/private-step.mjs audio-publication app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-audio-publication.test.ts
       - name: Frontend build
         if: ${{ !inputs.reuse_linux_runtime }}
         run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
@@ -237,6 +241,7 @@ jobs:
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
           RECORDING_DURATION_OUTCOME: ${{ steps.recording_duration.outcome }}
+          AUDIO_PUBLICATION_OUTCOME: ${{ steps.audio_publication.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
