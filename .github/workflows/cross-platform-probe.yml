@@ -31,7 +31,7 @@ on:
         default: false
         type: boolean
       reuse_linux_runtime:
-        description: Installer-only replay of the reviewed Linux runtime; keeps original binary provenance
+        description: Reuse reviewed Linux runtime for installer and capture QA; keeps original binary provenance
         required: true
         default: false
         type: boolean
@@ -104,7 +104,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf xvfb x11-utils apparmor pulseaudio pulseaudio-utils
+        run: |
+          timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
+          packages=(xvfb x11-utils apparmor pulseaudio pulseaudio-utils)
+          if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
+          timeout 300 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y "${packages[@]}"
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -202,7 +206,7 @@ jobs:
           node ci/file-outcomes.mjs
       - id: system_audio
         name: Linux isolated OS output capture and live captions
-        if: runner.os == 'Linux' && inputs.functional_runtime && !inputs.reuse_linux_runtime
+        if: runner.os == 'Linux' && inputs.functional_runtime
         env:
           HEAR_PROBE_REQUIRE_SANDBOX: '1'
         run: |

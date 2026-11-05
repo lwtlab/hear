@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
  let mut q=VecDeque::new();let mut samples=0usize;let mut peak=0f32;let mut squares=0f64;
  let end=Instant::now()+Duration::from_secs(8);
  while Instant::now()<end {
-  if capture.get_next_nbr_frames()?.unwrap_or(0)>0 {
+  if capture.get_next_packet_size()?.unwrap_or(0)>0 {
    capture.read_from_device_to_deque(&mut q)?;
    while q.len()>=4 {let b=[q.pop_front().unwrap(),q.pop_front().unwrap(),q.pop_front().unwrap(),q.pop_front().unwrap()];let v=f32::from_le_bytes(b);samples+=1;peak=peak.max(v.abs());squares+=(v as f64).powi(2)}
   }
