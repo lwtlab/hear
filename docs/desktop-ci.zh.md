@@ -111,3 +111,12 @@ Linux functional CI 对包含新 helper 的源码安装 libpulse-dev，构建随
 三端现在都可复用审阅过的精确 core 原生工件：Windows x64 MSVC、Linux x64 GNU、macOS ARM64。每个平台只允许对应的固定文件名，不接受其他架构；仍校验 ZIP 摘要、core SHA、原工作流与运行来源。使用复用的当前构建不会被标为 fresh nativeBuild。
 
 包含 recording-audio-publication.test.ts 的源码还会运行独立音频发布回归，并在 probe.json.audioPublication 记录结果；历史源码跳过该项。该测试验证压缩完成前继续提供 WAV、成功后发布完整 Opus，以及失败不暴露半成品。
+
+
+## ASR 边界与固定源码下载
+
+含 `crates/asr-command/examples/boundary_probe.rs` 的 core 会执行独立 ASR 边界门禁，并在 `probe.json.asrBoundaries` 记录结果。该门禁验证关键回归测试确实存在，再显式运行 Stdio 与 VAD 模块测试；不把无匹配的空测试运行当通过。shell-daemon 测试在 macOS/Linux 执行，Windows 明确 skipped，另由原生编译/加载和真实文件转录门禁覆盖。它不是整库测试或识别准确率基准。
+
+包含 `scripts/source-download.test.mjs` 的应用源码在 Unix 执行固定源码下载契约检查，记录 `probe.json.sourceDownload`；Windows 跳过这项 Bash 工具测试，实际构建仍运行下载逻辑。FFmpeg 保持原版本与固定 SHA-256：主站传输失败时可以从 MacPorts 下载相同字节。主站或镜像一旦成功下载但摘要不符，必须失败；未核验的缓存或 `.part` 不得进入构建。镜像只提高源码获取可用性，不修改版本或 LGPL 编译选项。
+
+macOS 打包签名可能改变 `.node` 的完整文件摘要。实机验包应使用已核验原包归档中的摘要，并单独保留原 native 工件的来源与摘要；不要直接用签名前摘要拒绝合法打包结果，也不要因此跳过原包校验。需要比较编译内容时，可以在派生副本上检查 Mach-O 有文件内容的节区，不能改写原包。
