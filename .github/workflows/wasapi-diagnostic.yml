@@ -41,7 +41,7 @@ jobs:
       - name: Restore pinned WIL and build unchanged Microsoft sample
         shell: pwsh
         run: |
-          nuget restore microsoft-sample/Samples/ApplicationLoopback/cpp/packages.config -PackagesDirectory microsoft-sample/packages -NonInteractive
+          nuget restore microsoft-sample/Samples/ApplicationLoopback/cpp/packages.config -PackagesDirectory microsoft-sample/Samples/ApplicationLoopback/cpp/packages -NonInteractive
           msbuild microsoft-sample/Samples/ApplicationLoopback/cpp/ApplicationLoopback.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:OutDir="$env:GITHUB_WORKSPACE/ms-output/" /verbosity:minimal
       - uses: actions/upload-artifact@v4
         with:
