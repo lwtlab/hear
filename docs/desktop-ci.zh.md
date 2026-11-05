@@ -120,3 +120,6 @@ Linux functional CI 对包含新 helper 的源码安装 libpulse-dev，构建随
 包含 `scripts/source-download.test.mjs` 的应用源码在 Unix 执行固定源码下载契约检查，记录 `probe.json.sourceDownload`；Windows 跳过这项 Bash 工具测试，实际构建仍运行下载逻辑。FFmpeg 保持原版本与固定 SHA-256：主站传输失败时可以从 MacPorts 下载相同字节。主站或镜像一旦成功下载但摘要不符，必须失败；未核验的缓存或 `.part` 不得进入构建。镜像只提高源码获取可用性，不修改版本或 LGPL 编译选项。
 
 macOS 打包签名可能改变 `.node` 的完整文件摘要。实机验包应使用已核验原包归档中的摘要，并单独保留原 native 工件的来源与摘要；不要直接用签名前摘要拒绝合法打包结果，也不要因此跳过原包校验。需要比较编译内容时，可以在派生副本上检查 Mach-O 有文件内容的节区，不能改写原包。
+
+
+新应用源码的文件门禁还会读取 `whisper-segmentation/result.json`：用原包 daemon、固定 tiny.en 和获准内置样例分别运行默认、显式 `--max-len 0` 与显式 `--max-len 60`。前两者必须保留相同的模型段落，后者才启用字符包装；规范化文本必须一致。它能拒绝默认值偷偷退回 60 字符的旧 daemon，归属于 `fileFunctional`，不代表实时识别准确率或逐词时码已通过。诊断运行仍只按精确 core 复用 native；daemon 随当前 app 的 whisper.cpp gitlink 重建，不能把它误算为复用旧解码器/引擎。
