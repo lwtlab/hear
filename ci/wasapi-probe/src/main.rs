@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
  let mut client=AudioClient::new_application_loopback_client(pid,true)?;
  client.initialize_client(&fmt,0,&Direction::Capture,&ShareMode::Shared,true)?;
  let event=client.set_get_eventhandle()?;
- let event=if a[3]=="keep"{Some(event)}else{drop(event);None};
+ let event=if a[3]!="drop"{Some(event)}else{drop(event);None};
  let capture=client.get_audiocaptureclient()?;
  client.start_stream()?;
  let mut q=VecDeque::new();let mut samples=0usize;let mut peak=0f32;let mut squares=0f64;
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
    capture.read_from_device_to_deque(&mut q)?;
    while q.len()>=4 {let b=[q.pop_front().unwrap(),q.pop_front().unwrap(),q.pop_front().unwrap(),q.pop_front().unwrap()];let v=f32::from_le_bytes(b);samples+=1;peak=peak.max(v.abs());squares+=(v as f64).powi(2)}
   }
-  std::thread::sleep(Duration::from_millis(3));
+  if a[3]=="wait" {let _=event.as_ref().unwrap().wait_for_event(250);} else {std::thread::sleep(Duration::from_millis(3));}
  }
  client.stop_stream()?;drop(event);
  println!("{{\"channels\":{},\"samples\":{},\"peak\":{},\"rms\":{}}}",channels,samples,peak,(squares/samples.max(1) as f64).sqrt());
