@@ -7,5 +7,14 @@
     "artifactId": "13332371617",
     "archiveSha256": "074ace9d071c0a5ec086e9d9abdf69f6f6b5cf8bbe7a71873af43dd94605fce2",
     "filename": "hear-core.win32-x64-msvc.node"
+  },
+  "linux-x64": {
+    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
+    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
+    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
+    "runId": "41957210671",
+    "artifactId": "13383208361",
+    "archiveSha256": "81c38be8a32b3d065c1a13a14626308394343799de4afeb6bea008a740f997b0",
+    "filename": "hear-core.linux-x64-gnu.node"
   }
 }

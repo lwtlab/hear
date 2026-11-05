@@ -7,8 +7,9 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 export function validateNativeReuse(entry, platform, coreRef) {
-  if (!entry || !/^[a-f0-9]{40}$/.test(coreRef ?? '') || entry.coreRef !== coreRef || platform !== 'win32-x64'
-    || entry.filename !== 'hear-core.win32-x64-msvc.node'
+  const filename = { 'win32-x64': 'hear-core.win32-x64-msvc.node', 'linux-x64': 'hear-core.linux-x64-gnu.node' }[platform];
+  if (!entry || !filename || !/^[a-f0-9]{40}$/.test(coreRef ?? '') || entry.coreRef !== coreRef
+    || entry.filename !== filename
     || !/^[a-f0-9]{64}$/.test(entry.archiveSha256)
     || !/^[0-9]+$/.test(entry.artifactId) || !/^[0-9]+$/.test(entry.runId)
     || !/^[a-f0-9]{40}$/.test(entry.workflowRef)) throw new Error('No reviewed native runtime for this exact source/platform; build fresh');
@@ -25,9 +26,16 @@ async function main() {
   if (createHash('sha256').update(download.stdout).digest('hex') !== entry.archiveSha256) throw new Error('Native artifact digest mismatch');
   writeFileSync(archive, download.stdout);
   // Git Bash's GNU tar cannot read ZIP; use the Windows bsdtar explicitly.
-  const tar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
-  const unpack = spawnSync(tar, ['-xf', archive, '-C', work]);
-  if (unpack.status !== 0) throw new Error('Cannot unpack native artifact');
+  if (process.platform === 'win32') {
+    const tar = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
+    const unpack = spawnSync(tar, ['-xf', archive, '-C', work]);
+    if (unpack.status !== 0) throw new Error('Cannot unpack native artifact');
+  } else {
+    // Read only the reviewed basename. No ZIP-controlled paths are extracted.
+    const unpack = spawnSync('/usr/bin/unzip', ['-p', archive, entry.filename], { maxBuffer: 100 * 1024 ** 2 });
+    if (unpack.status !== 0 || !unpack.stdout.length) throw new Error('Cannot read native artifact');
+    writeFileSync(join(work, entry.filename), unpack.stdout);
+  }
   const core = resolve('hear-core');
   copyFileSync(join(work, entry.filename), join(core, entry.filename));
   writeFileSync(join(core, 'native-origin.json'), JSON.stringify(entry));

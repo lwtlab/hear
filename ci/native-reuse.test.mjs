@@ -10,3 +10,11 @@ test('accepts only the reviewed exact-source binding', () => {
   assert.throws(() => validateNativeReuse(entry, 'win32-x64', '0'.repeat(40)));
   assert.throws(() => validateNativeReuse({ ...entry, archiveSha256: '' }, 'win32-x64', entry.coreRef));
 });
+
+test('Linux reuse is exact-core and GNU-target only', () => {
+  const linux = { ...entry, filename: 'hear-core.linux-x64-gnu.node' };
+  assert.equal(validateNativeReuse(linux, 'linux-x64', entry.coreRef), linux);
+  assert.throws(() => validateNativeReuse(linux, 'linux-arm64', entry.coreRef));
+  assert.throws(() => validateNativeReuse(linux, 'linux-x64', '0'.repeat(40)));
+  assert.throws(() => validateNativeReuse({ ...linux, filename: '../binding.node' }, 'linux-x64', entry.coreRef));
+});

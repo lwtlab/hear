@@ -101,3 +101,8 @@ node ci/decrypt-log.mjs <new-log-dir>/build-log.enc.json <private-key.pem> <new-
 `wasapi-diagnostic.yml` 只构建诊断工具，不在 CI 采音、不签名、不发布。旧/新 wasapi 绑定、直接格式对照、原生样例播放器与固定源码的微软 ApplicationLoopback 示例各有独立产物。实机只能传入核验过的专属样例播放器 PID，采用 include-tree；不使用默认输出回环或 exclude-tree。记录私有步骤与工具准备错误时，不把准备失败算作产品结论。
 
 Windows 诊断应先在 Interactive/Limited 桌面会话确认自有音频 session 的真实 PID、活动状态、静音、音量和峰值，再比较主进程与实际采音子进程。端点检查也必须来自该交互会话，SSH Session 0 的默认设备不代表桌面默认设备。若未经修改的微软示例也返回零信号，应保留共同失败边界，避免凭猜测升级生产依赖或修改系统设置。
+
+
+Linux functional CI 对包含新 helper 的源码安装 libpulse-dev，构建随包 monitor 采集程序，并在独立 PulseAudio 服务上运行设备消失/禁止迁移回归。服务只有虚拟输出及一个用于拒绝测试的虚拟 null input，不加载硬件模块。它与实机桌面服务隔离，不能将通过结果写成物理麦克风或完整产品混音验收。
+
+`reuse_native=true` 也支持经过审阅的 Linux x64 GNU binding；仍要求精确 core SHA、原 artifact ZIP 摘要和固定文件名。原生源码变化或工件过期必须重新构建。复用只节省绑定编译，当前应用前端、采音 helper、引擎、解码器与功能检查仍按新源码运行，并记录 nativeReuse 与 nativeBuild 的区别。

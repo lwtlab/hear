@@ -26,7 +26,7 @@ on:
         default: false
         type: boolean
       reuse_native:
-        description: Reuse a reviewed exact-core native artifact (Windows only); expiry requires a fresh build
+        description: Reuse a reviewed exact-core Windows/Linux native artifact; expiry requires a fresh build
         required: true
         default: false
         type: boolean
@@ -107,7 +107,7 @@ jobs:
         run: |
           timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
           packages=(xvfb x11-utils apparmor pulseaudio pulseaudio-utils)
-          if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
+          if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev libpulse-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
           timeout 300 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y "${packages[@]}"
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
@@ -176,6 +176,12 @@ jobs:
         run: |
           node ci/private-step.mjs asr-stage app/apps/desktop node scripts/stage-myserver.mjs
           node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
+      - name: Build scoped Linux monitor capture helper
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/apps/desktop/native/pulse-capture.c') != ''
+        run: node ci/private-step.mjs pulse-capture-build app/apps/desktop node scripts/build-pulse-capture.mjs
+      - name: Linux monitor disappearance and no-fallback regression
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/scripts/linux-pulse-isolation.mjs') != ''
+        run: node ci/private-step.mjs pulse-isolation app node scripts/linux-pulse-isolation.mjs "$RUNNER_TEMP/hear-file-functional/evidence/linux-pulse-isolation"
       - id: linux_runtime_reuse
         name: Restore reviewed Linux runtime for installer-only replay
         if: inputs.reuse_linux_runtime
