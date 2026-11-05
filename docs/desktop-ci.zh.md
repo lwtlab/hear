@@ -123,3 +123,8 @@ macOS 打包签名可能改变 `.node` 的完整文件摘要。实机验包应�
 
 
 新应用源码的文件门禁还会读取 `whisper-segmentation/result.json`：用原包 daemon、固定 tiny.en 和获准内置样例分别运行默认、显式 `--max-len 0` 与显式 `--max-len 60`。前两者必须保留相同的模型段落，后者才启用字符包装；规范化文本必须一致。它能拒绝默认值偷偷退回 60 字符的旧 daemon，归属于 `fileFunctional`，不代表实时识别准确率或逐词时码已通过。诊断运行仍只按精确 core 复用 native；daemon 随当前 app 的 whisper.cpp gitlink 重建，不能把它误算为复用旧解码器/引擎。
+
+
+`ci-file-runtime.mjs` 使用按 SHA-256 固定的模型下载器：先核验缓存；连接/响应体超时或中断、HTTP 408/429/5xx 最多尝试三次，每次限制 240 秒，失败后等待 1/2 秒。完整读取并核验摘要后才原子落盘；错误摘要或 HTTP 404 立即失败，不用坏缓存或半成品启动模型。下载器的六项合成网络/文件边界测试与真实模型推理分开，不能用前者冒充后者。
+
+若 Whisper 和段落检查通过、SenseVoice 下载超时，则整个 run 仍为 failure，SenseVoice 记未完成。只重跑 Windows 时保持精确 core/native 来源，选择 `target=win32-x64`、`file_models=whisper-and-sensevoice`，记录新的 app/workflow/run；仅改 QA 下载脚本也不能把新 SHA 回写到旧原包来源。最终报告应并列保留初轮失败、其他平台原始通过结果与专项重跑。
