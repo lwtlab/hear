@@ -1,29 +1,29 @@
 {
   "win32-x64": {
-    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
-    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
-    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
-    "runId": "41957210671",
-    "artifactId": "13384202699",
-    "archiveSha256": "19f9b482ad0884aab5b9ddb252a56895fd0d115455abf0ba79a4e69b448c0bf5",
+    "coreRef": "03a68292b9b4ebc06e1e5249914c8f0cbde80d3b",
+    "appRef": "10e5d547916b3bc36691fd72b7e4d64fc84b9b68",
+    "workflowRef": "07f94c0f0f1929db8de005b16a6cf8d582c0f752",
+    "runId": "42026132323",
+    "artifactId": "13414312916",
+    "archiveSha256": "1c7b4e14b1366cc809a9021c7cf0fbe662185f22864d9bfdf3dff5e91be47af4",
     "filename": "hear-core.win32-x64-msvc.node"
   },
   "linux-x64": {
-    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
-    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
-    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
-    "runId": "41957210671",
-    "artifactId": "13383208361",
-    "archiveSha256": "81c38be8a32b3d065c1a13a14626308394343799de4afeb6bea008a740f997b0",
+    "coreRef": "03a68292b9b4ebc06e1e5249914c8f0cbde80d3b",
+    "appRef": "10e5d547916b3bc36691fd72b7e4d64fc84b9b68",
+    "workflowRef": "07f94c0f0f1929db8de005b16a6cf8d582c0f752",
+    "runId": "42026132323",
+    "artifactId": "13414142349",
+    "archiveSha256": "8fc3cfd111fb7c66da5e36d876cf18f624c24c818e12f5bbd14ce4346050d6e3",
     "filename": "hear-core.linux-x64-gnu.node"
   },
   "darwin-arm64": {
-    "coreRef": "89154480065a89b6acd2fb0b376c91fe0462a851",
-    "appRef": "a602a0a52f5b3d55ff74272630ce5c98c791ea6e",
-    "workflowRef": "38ea7a67a8b794b7f2b5ae25c5ae675ac0acbcda",
-    "runId": "41957210671",
-    "artifactId": "13383218722",
-    "archiveSha256": "fd194bb6803fa08207fd986ad83492df214d305c4d389d20437339fc700cb6ee",
+    "coreRef": "03a68292b9b4ebc06e1e5249914c8f0cbde80d3b",
+    "appRef": "10e5d547916b3bc36691fd72b7e4d64fc84b9b68",
+    "workflowRef": "07f94c0f0f1929db8de005b16a6cf8d582c0f752",
+    "runId": "42026132323",
+    "artifactId": "13414980322",
+    "archiveSha256": "a582f824b278d2049eab961c354a2d4263a3ef3baa1856c96692dd0ba513fe28",
     "filename": "hear-core.darwin-arm64.node"
   }
 }
