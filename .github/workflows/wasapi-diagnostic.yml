@@ -26,3 +26,26 @@ jobs:
             ci/wasapi-current-probe/target/release/hear-wasapi-render.exe
           if-no-files-found: error
           retention-days: 7
+  microsoft-sample:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/Windows-classic-samples
+          ref: 434f6002bdf9cf9829406c3ff2b33387982d6168
+          path: microsoft-sample
+          sparse-checkout: Samples/ApplicationLoopback
+          persist-credentials: false
+      - uses: microsoft/setup-msbuild@v2
+      - name: Restore pinned WIL and build unchanged Microsoft sample
+        shell: pwsh
+        run: |
+          nuget restore microsoft-sample/Samples/ApplicationLoopback/cpp/packages.config -PackagesDirectory microsoft-sample/packages -NonInteractive
+          msbuild microsoft-sample/Samples/ApplicationLoopback/cpp/ApplicationLoopback.vcxproj /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /p:OutDir="$env:GITHUB_WORKSPACE/ms-output/" /verbosity:minimal
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hear-microsoft-loopback-${{ github.run_id }}
+          path: ms-output/ApplicationLoopback.exe
+          if-no-files-found: error
+          retention-days: 7
