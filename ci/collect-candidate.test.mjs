@@ -43,3 +43,24 @@ test('candidate rejects tracked source mutation during build', t => {
   writeFileSync(join(root, 'app/apps/desktop/package.json'), '{"version":"9.9.9"}');
   assert.notEqual(spawnSync(process.execPath, [script], { cwd: root, env }).status, 0);
 });
+test('monorepo candidates bind application and core to one private source commit', t => {
+  const { root, env } = setup(t);
+  const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const app = join(root, 'core/apps/hear');
+  mkdirSync(app, { recursive: true });
+  const release = join(app, 'apps/desktop/release'); mkdirSync(release, { recursive: true });
+  writeFileSync(join(release, 'AIHear-2.0.0-arm64.dmg'), 'synthetic dmg');
+  writeFileSync(join(release, 'AIHear-2.0.0-arm64.zip'), 'synthetic zip');
+  writeFileSync(join(app, 'apps/desktop/package.json'), '{"version":"2.0.0"}');
+  git(join(root, 'core'), 'add', '.');
+  git(join(root, 'core'), '-c', 'user.email=test@example.invalid', '-c', 'user.name=Test', 'commit', '-m', 'monorepo inputs');
+  const sourceRef = git(join(root, 'core'), 'rev-parse', 'HEAD');
+  const selected = { ...env, SOURCE_LAYOUT: 'monorepo', SOURCE_REF: sourceRef, APP_REF: sourceRef, CORE_REF: sourceRef };
+  assert.equal(spawnSync(process.execPath, [resolve(import.meta.dirname, 'assert-sources.mjs')], { cwd: root, env: selected }).status, 0);
+  const r = spawnSync(process.execPath, [script], { cwd: root, env: selected });
+  assert.equal(r.status, 0, r.stderr.toString());
+  const manifest = JSON.parse(readFileSync(join(root, 'candidate/candidate.json')));
+  assert.equal(manifest.schemaVersion, 2);
+  assert.deepEqual(manifest.source, { repository: 'lwtlab/lwt-core', commit: sourceRef, appPath: 'apps/hear' });
+  assert.equal(manifest.appRef, sourceRef); assert.equal(manifest.coreRef, sourceRef);
+});

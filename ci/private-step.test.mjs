@@ -30,3 +30,13 @@ test('invalid encryption key fails closed and removes plaintext', t => {
   const seal = spawnSync(process.execPath, [join(ci, 'seal-log.mjs')], { cwd: dir, env });
   assert.notEqual(seal.status, 0); assert.ok(!existsSync(join(dir, 'hear-private.log')));
 });
+test('monorepo private steps execute the in-tree application without exposing output', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hear-ci-monorepo-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, 'core/apps/hear/apps/desktop'), { recursive: true });
+  const result = spawnSync(process.execPath, [join(ci, 'private-step.mjs'), 'unit', 'app', process.execPath, '-e',
+    'if (!process.cwd().replaceAll("\\\\", "/").endsWith("core/apps/hear")) process.exit(2); console.log("PRIVATE_MONOREPO")'],
+    { cwd: dir, env: { ...process.env, SOURCE_LAYOUT: 'monorepo', RUNNER_TEMP: dir }, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(!(result.stdout + result.stderr).includes('PRIVATE_MONOREPO'));
+  assert.ok(readFileSync(join(dir, 'hear-private.log'), 'utf8').includes('PRIVATE_MONOREPO'));
+});

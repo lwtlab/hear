@@ -1,3 +1,7 @@
+> 新开发源码位于私有 `lwtlab/lwt-core/apps/hear`。三端工作流可用 `source_ref=<父仓完整SHA>`
+> 代替历史 `app_ref` / `core_ref`，两种输入不能混用。公开 Hear 仓库负责工作流和诊断产物；
+> 应用和 core 使用同一次私有 checkout。旧来源复验继续使用下文的历史成对输入。
+
 # Hear 三端可行性探测
 
 `cross-platform-probe.yml` 分别在 Ubuntu 22.04 x64、Windows 2025 x64、macOS 26 arm64 检查固定 app/core 源码。它不发布版本：Rust 失败以 continue-on-error 保留，随后尝试构建隔离名称的诊断运行目录，报告每一层的实际结果。
