@@ -5,13 +5,17 @@ on:
     branches: [ci/verify-macos]
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Full lwtlab/lwt-core SHA containing apps/hear (preferred)
+        required: false
+        type: string
       app_ref:
-        description: Full SHA in XUJiahua/lwt-app-hear2
-        required: true
+        description: Historical standalone Hear SHA; omit with source_ref
+        required: false
         type: string
       core_ref:
         description: Full SHA in lwtlab/lwt-core
-        required: true
+        required: false
         type: string
       mode:
         description: Checks use scripted E2E; candidate also builds all native inputs and unsigned packages
@@ -29,6 +33,9 @@ jobs:
       run:
         shell: bash
     env:
+      SOURCE_REF: ${{ inputs.source_ref || (github.event_name == 'push' && vars.HEAR_VERIFY_SOURCE_SHA) || '' }}
+      EXPLICIT_APP_REF: ${{ inputs.app_ref }}
+      EXPLICIT_CORE_REF: ${{ inputs.core_ref }}
       APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
       CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
       BUILD_MODE: ${{ inputs.mode || 'checks' }}
@@ -42,17 +49,20 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.22.0
       - name: Validate inputs and encryption before private checkout
         run: |
           node --input-type=module <<'JS'
           import { validateDispatch } from './ci/dispatch.mjs';
           import { encryptLog } from './ci/log-crypto.mjs';
-          validateDispatch({ appRef: process.env.APP_REF, coreRef: process.env.CORE_REF, mode: process.env.BUILD_MODE });
+          const source = validateDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.SOURCE_REF ? process.env.EXPLICIT_APP_REF : process.env.APP_REF, coreRef: process.env.SOURCE_REF ? process.env.EXPLICIT_CORE_REF : process.env.CORE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
+          const { appendFileSync } = await import('node:fs');
+          appendFileSync(process.env.GITHUB_ENV, `SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
           if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('macOS arm64 runner required');
           encryptLog(Buffer.from('preflight'), process.env.HEAR_LOG_PUBLIC_KEY);
           JS
       - uses: actions/checkout@v4
+        if: env.SOURCE_LAYOUT == 'legacy-pair'
         with:
           repository: XUJiahua/lwt-app-hear2
           ref: ${{ env.APP_REF }}
@@ -68,6 +78,8 @@ jobs:
           ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
           persist-credentials: false
           submodules: false
+      - name: Verify source checkout identities
+        run: node ci/assert-sources.mjs
       - uses: pnpm/action-setup@v4
         with:
           version: 11.5.2

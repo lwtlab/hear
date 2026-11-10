@@ -1,13 +1,16 @@
+import { sourcePaths } from './dispatch.mjs';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, lstatSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-const release = 'app/apps/desktop/release';
+const { app, core } = sourcePaths();
+const release = join(app, 'apps/desktop/release');
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
-const appRef = git('app', 'rev-parse', 'HEAD');
-const coreRef = git('core', 'rev-parse', 'HEAD');
+const appRef = git(app, 'rev-parse', 'HEAD');
+const coreRef = git(core, 'rev-parse', 'HEAD');
+if (process.env.SOURCE_LAYOUT === 'monorepo' && (appRef !== process.env.SOURCE_REF || coreRef !== process.env.SOURCE_REF)) throw new Error('Monorepo source identity mismatch');
 if (appRef !== process.env.APP_REF || coreRef !== process.env.CORE_REF) throw new Error('Checkout identity mismatch');
-for (const cwd of ['app', 'core']) {
+for (const cwd of [app, core]) {
   if (git(cwd, 'status', '--porcelain=v1', '--untracked-files=normal')) throw new Error('Source checkout changed during build');
 }
 mkdirSync('candidate', { recursive: true });
@@ -21,4 +24,4 @@ for (const name of readdirSync(release).sort()) {
   assets.push({ name, bytes: stat.size, sha256 });
 }
 if (!assets.some(a => a.name.endsWith('.dmg')) || !assets.some(a => a.name.endsWith('.zip'))) throw new Error('Missing candidate assets');
-writeFileSync('candidate/candidate.json', JSON.stringify({ schemaVersion: 1, product: 'AIHear', platform: 'darwin-arm64', distribution: 'unsigned-ci-candidate', version: JSON.parse(readFileSync('app/apps/desktop/package.json')).version, appRef, coreRef, workflowRef: git('.', 'rev-parse', 'HEAD'), runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT, appSubmodules: git('app', 'submodule', 'status', '--recursive').split('\n'), coreSubmodules: git('core', 'submodule', 'status', '--recursive').split('\n'), assets, acceptance: { packagedUI: 'NOT RUN', realAudio: 'NOT RUN', signedDistribution: 'NOT RUN', windows: 'NOT RUN', linux: 'NOT RUN' } }, null, 2) + '\n');
+writeFileSync('candidate/candidate.json', JSON.stringify({ schemaVersion: process.env.SOURCE_LAYOUT === 'monorepo' ? 2 : 1, ...(process.env.SOURCE_LAYOUT === 'monorepo' ? { source: { repository: 'lwtlab/lwt-core', commit: process.env.SOURCE_REF, appPath: 'apps/hear' } } : {}), product: 'AIHear', platform: 'darwin-arm64', distribution: 'unsigned-ci-candidate', version: JSON.parse(readFileSync(join(app, 'apps/desktop/package.json'))).version, appRef, coreRef, workflowRef: git('.', 'rev-parse', 'HEAD'), runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT, appSubmodules: git(app, 'submodule', 'status', '--recursive').split('\n'), coreSubmodules: git(core, 'submodule', 'status', '--recursive').split('\n'), assets, acceptance: { packagedUI: 'NOT RUN', realAudio: 'NOT RUN', signedDistribution: 'NOT RUN', windows: 'NOT RUN', linux: 'NOT RUN' } }, null, 2) + '\n');

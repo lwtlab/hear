@@ -4,11 +4,15 @@ on:
     branches: [ci/verify-platforms]
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Full lwtlab/lwt-core SHA containing apps/hear (preferred)
+        required: false
+        type: string
       app_ref:
-        required: true
+        required: false
         type: string
       core_ref:
-        required: true
+        required: false
         type: string
       target:
         required: true
@@ -56,6 +60,9 @@ jobs:
       run:
         shell: bash
     env:
+      SOURCE_REF: ${{ inputs.source_ref || (github.event_name == 'push' && vars.HEAR_VERIFY_SOURCE_SHA) || '' }}
+      EXPLICIT_APP_REF: ${{ inputs.app_ref }}
+      EXPLICIT_CORE_REF: ${{ inputs.core_ref }}
       APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
       CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
@@ -72,17 +79,20 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.22.0
       - name: Validate sources and encryption
         run: |
           node --input-type=module <<'JS'
           import {validateDispatch} from './ci/dispatch.mjs';
           import {encryptLog} from './ci/log-crypto.mjs';
-          validateDispatch({appRef:process.env.APP_REF,coreRef:process.env.CORE_REF,mode:'checks'});
+          const source = validateDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.SOURCE_REF ? process.env.EXPLICIT_APP_REF : process.env.APP_REF, coreRef: process.env.SOURCE_REF ? process.env.EXPLICIT_CORE_REF : process.env.CORE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
+          const { appendFileSync } = await import('node:fs');
+          appendFileSync(process.env.GITHUB_ENV, `SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
           encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
           if (process.env.REUSE_LINUX_RUNTIME === 'true' && (process.env.PROBE_TARGET !== 'linux-x64' || process.env.PROBE_NATIVE_CHECK !== 'false' || process.env.PROBE_FUNCTIONAL_RUNTIME !== 'true')) throw new Error('Linux installer replay requires linux-x64, native_check=false, functional_runtime=true');
           JS
       - uses: actions/checkout@v4
+        if: env.SOURCE_LAYOUT == 'legacy-pair'
         with:
           repository: XUJiahua/lwt-app-hear2
           ref: ${{ env.APP_REF }}
@@ -98,6 +108,8 @@ jobs:
           ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
           persist-credentials: false
           submodules: false
+      - name: Verify source checkout identities
+        run: node ci/assert-sources.mjs
       - uses: pnpm/action-setup@v4
         with:
           version: 11.5.2
@@ -116,11 +128,11 @@ jobs:
         run: node ci/private-step.mjs typecheck app pnpm typecheck
       - id: recording_duration
         name: Recording duration and persistence regression
-        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-duration.test.ts') != ''
+        if: hashFiles(format('{0}/apps/desktop/src/main/__tests__/recording-duration.test.ts', env.HEAR_APP_PATH)) != ''
         run: node ci/private-step.mjs recording-duration app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-duration.test.ts apps/desktop/src/main/__tests__/session-recorder.test.ts
       - id: audio_publication
         name: Recording audio publication regression
-        if: hashFiles('app/apps/desktop/src/main/__tests__/recording-audio-publication.test.ts') != ''
+        if: hashFiles(format('{0}/apps/desktop/src/main/__tests__/recording-audio-publication.test.ts', env.HEAR_APP_PATH)) != ''
         run: node ci/private-step.mjs audio-publication app pnpm exec vitest run apps/desktop/src/main/__tests__/recording-audio-publication.test.ts
       - name: Frontend build
         if: ${{ !inputs.reuse_linux_runtime }}
@@ -130,7 +142,7 @@ jobs:
         run: node ci/private-step.mjs submodules core git -c submodule.aspeak.url=https://github.com/XUJiahua/aspeak.git -c submodule.srtparse.url=https://github.com/XUJiahua/srtparse.git submodule update --init --recursive -- aspeak srtparse
       - id: source_download
         name: Pinned source download fallback contract
-        if: runner.os != 'Windows' && hashFiles('app/scripts/source-download.test.mjs') != ''
+        if: runner.os != 'Windows' && hashFiles(format('{0}/scripts/source-download.test.mjs', env.HEAR_APP_PATH)) != ''
         run: node ci/private-step.mjs source-download app node --test scripts/source-download.test.mjs
       - id: asr_boundaries
         name: ASR digital-silence and VAD context regressions
@@ -189,17 +201,17 @@ jobs:
           node ci/private-step.mjs asr-stage app/apps/desktop node scripts/stage-myserver.mjs
           node ci/private-step.mjs ffmpeg-stage app/apps/desktop node scripts/stage-ffmpeg.mjs
       - name: Build scoped Linux monitor capture helper
-        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/apps/desktop/native/pulse-capture.c') != ''
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles(format('{0}/apps/desktop/native/pulse-capture.c', env.HEAR_APP_PATH)) != ''
         run: node ci/private-step.mjs pulse-capture-build app/apps/desktop node scripts/build-pulse-capture.mjs
       - name: Linux monitor disappearance and no-fallback regression
-        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles('app/scripts/linux-pulse-isolation.mjs') != ''
+        if: inputs.functional_runtime && runner.os == 'Linux' && !inputs.reuse_linux_runtime && hashFiles(format('{0}/scripts/linux-pulse-isolation.mjs', env.HEAR_APP_PATH)) != ''
         run: node ci/private-step.mjs pulse-isolation app node scripts/linux-pulse-isolation.mjs "$RUNNER_TEMP/hear-file-functional/evidence/linux-pulse-isolation"
       - id: linux_runtime_reuse
         name: Restore reviewed Linux runtime for installer-only replay
         if: inputs.reuse_linux_runtime
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node ci/private-step.mjs linux-runtime-reuse app node ../ci/linux-runtime-reuse.mjs
+        run: node ci/private-step.mjs linux-runtime-reuse app node "$GITHUB_WORKSPACE/ci/linux-runtime-reuse.mjs"
       - id: diagnostic_package
         name: Package diagnostic runtime (not a release)
         if: ${{ !inputs.reuse_linux_runtime }}

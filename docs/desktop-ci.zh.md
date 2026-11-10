@@ -1,3 +1,22 @@
+# Monorepo 来源入口
+
+Reader 和 Hear 应用源码统一在私有 `lwtlab/lwt-core` 开发。公开 `reader`、`hear` 仓库分别承载
+网站、公共 CI 与产品产物。新 Hear 应用位于 `apps/hear`，应用与原生 core 绑定同一个源码 SHA：
+
+```sh
+gh workflow run desktop-candidates.yml --repo lwtlab/hear --ref <已审阅的公开CI分支> \
+  -f source_ref=<lwt-core完整SHA> -f mode=checks
+# 需要未签名候选时显式选择 mode=candidate。
+```
+
+传入 `source_ref` 时省略 `app_ref` / `core_ref`；混用会被拒绝。公共工作流仍须单独核对实际
+workflow SHA、run/attempt 与制品摘要。monorepo 模式只 checkout 一份私有源码，使用既有
+只读 `HEAR_CORE_SOURCE_SSH_KEY`；旧 `HEAR_APP_SOURCE_SSH_KEY` 仅服务历史双仓输入，切换前
+不删除或扩大权限。candidate schema 2 记录 repository / commit / appPath；诊断产物分开
+记录 `sourceRef` 与 `qaSourceRef`。复用旧二进制时不会把当前 QA 提交写成原二进制来源。
+
+以下双仓调度及已冻结 run 是历史兼容入口；它们的原 SHA 与验收范围保持原值。
+
 # Hear 公开桌面 CI 操作
 
 此工作流在公开 `lwtlab/hear` 运行，按固定 SHA 读取私有 Hear2 和 lwt-core。官网继续使用原有 Pages 流程；桌面候选仅存为 Actions artifacts，不修改正式 Release 和更新 feed。
