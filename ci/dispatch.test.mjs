@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { resolveDispatch, validateDispatch } from './dispatch.mjs';
+test('website and deployment pin the unified pnpm version and explicitly approve native builds', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = name => readFileSync(new URL('../' + name, import.meta.url), 'utf8');
+  const manager = JSON.parse(read('package.json')).packageManager;
+  assert.equal(manager, 'pnpm@11.5.2');
+  assert.ok(read('.github/workflows/deploy.yml').includes('package-manager: ' + manager));
+  for (const dependency of ['sharp', 'esbuild'])
+    assert.match(read('pnpm-workspace.yaml'), new RegExp('^  ' + dependency + ': true$', 'm'));
+  assert.ok(!read('pnpm-workspace.yaml').includes('dangerouslyAllowAllBuilds'));
+});
 test('default source is monorepo and explicit historical pairs never borrow defaults', () => {
   const defaultSourceRef = 'd'.repeat(40), mode = 'checks';
   assert.equal(resolveDispatch({ defaultSourceRef, mode }).sourceRef, defaultSourceRef);

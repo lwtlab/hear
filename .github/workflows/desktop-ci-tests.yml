@@ -1,10 +1,10 @@
 name: Hear CI infrastructure
 on:
   pull_request:
-    paths: ['ci/**', '.github/workflows/*.yml']
+    paths: ['ci/**', '.github/workflows/*.yml', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.nvmrc']
   push:
     branches: [main]
-    paths: ['ci/**', '.github/workflows/*.yml']
+    paths: ['ci/**', '.github/workflows/*.yml', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.nvmrc']
 permissions:
   contents: read
 jobs:
@@ -18,3 +18,17 @@ jobs:
         with:
           node-version: 24.22.0
       - run: node --test ci/*.test.mjs
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: package.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
