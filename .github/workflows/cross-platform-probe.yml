@@ -60,11 +60,10 @@ jobs:
       run:
         shell: bash
     env:
-      SOURCE_REF: ${{ inputs.source_ref || (github.event_name == 'push' && vars.HEAR_VERIFY_SOURCE_SHA) || '' }}
-      EXPLICIT_APP_REF: ${{ inputs.app_ref }}
-      EXPLICIT_CORE_REF: ${{ inputs.core_ref }}
-      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
-      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+      DEFAULT_SOURCE_REF: ${{ vars.HEAR_VERIFY_SOURCE_SHA }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
@@ -83,11 +82,11 @@ jobs:
       - name: Validate sources and encryption
         run: |
           node --input-type=module <<'JS'
-          import {validateDispatch} from './ci/dispatch.mjs';
+          import {resolveDispatch} from './ci/dispatch.mjs';
           import {encryptLog} from './ci/log-crypto.mjs';
-          const source = validateDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.SOURCE_REF ? process.env.EXPLICIT_APP_REF : process.env.APP_REF, coreRef: process.env.SOURCE_REF ? process.env.EXPLICIT_CORE_REF : process.env.CORE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
+          const source = resolveDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF, defaultSourceRef: process.env.DEFAULT_SOURCE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
           const { appendFileSync } = await import('node:fs');
-          appendFileSync(process.env.GITHUB_ENV, `SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `SOURCE_REF=${source.sourceRef ?? ''}\nSOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
           encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
           if (process.env.REUSE_LINUX_RUNTIME === 'true' && (process.env.PROBE_TARGET !== 'linux-x64' || process.env.PROBE_NATIVE_CHECK !== 'false' || process.env.PROBE_FUNCTIONAL_RUNTIME !== 'true')) throw new Error('Linux installer replay requires linux-x64, native_check=false, functional_runtime=true');
           JS
@@ -112,7 +111,7 @@ jobs:
         run: node ci/assert-sources.mjs
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.5.2
+          package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
@@ -126,6 +125,17 @@ jobs:
       - id: types
         continue-on-error: true
         run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - id: integration_tools
+        name: Monorepo integration tools on Linux
+        if: runner.os == 'Linux' && env.SOURCE_LAYOUT == 'monorepo'
+        run: node ci/private-step.mjs integration core bash scripts/hear.sh check
+      - id: unit_tests
+        name: Full application unit tests on Linux
+        if: runner.os == 'Linux' && env.SOURCE_LAYOUT == 'monorepo'
+        run: node ci/private-step.mjs unit app pnpm test:unit
+      - name: Require monorepo Linux type safety
+        if: runner.os == 'Linux' && env.SOURCE_LAYOUT == 'monorepo' && steps.types.outcome != 'success'
+        run: exit 1
       - id: recording_duration
         name: Recording duration and persistence regression
         if: hashFiles(format('{0}/apps/desktop/src/main/__tests__/recording-duration.test.ts', env.HEAR_APP_PATH)) != ''
@@ -166,7 +176,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: inputs.functional_runtime && !inputs.reuse_linux_runtime
         with:
-          name: hear-native-${{ matrix.id }}-${{ github.run_id }}
+          name: hear-native-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: core/hear-core/hear-core.*.node
           retention-days: 7
           if-no-files-found: error
@@ -260,6 +270,8 @@ jobs:
           FILE_FUNCTIONAL_OUTCOME: ${{ steps.file_functional.outcome }}
           FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
           TYPECHECK_OUTCOME: ${{ steps.types.outcome }}
+          INTEGRATION_TOOLS_OUTCOME: ${{ steps.integration_tools.outcome }}
+          UNIT_TESTS_OUTCOME: ${{ steps.unit_tests.outcome }}
           RECORDING_DURATION_OUTCOME: ${{ steps.recording_duration.outcome }}
           AUDIO_PUBLICATION_OUTCOME: ${{ steps.audio_publication.outcome }}
           ASR_BOUNDARIES_OUTCOME: ${{ steps.asr_boundaries.outcome }}
@@ -272,8 +284,15 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always() && steps.collect.outcome == 'success'
         with:
-          name: hear-probe-${{ matrix.id }}-${{ github.run_id }}
+          name: hear-probe-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: probe-artifact/
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.collect.outcome == 'success'
+        with:
+          name: hear-probe-receipt-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: probe-artifact/probe.json
           retention-days: 7
           if-no-files-found: error
       - if: always()
@@ -281,7 +300,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: hear-probe-encrypted-${{ matrix.id }}-${{ github.run_id }}
+          name: hear-probe-encrypted-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: diagnostics/*.enc.json
           if-no-files-found: ignore
           retention-days: 7

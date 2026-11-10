@@ -1,4 +1,10 @@
 const fullSha = value => typeof value === 'string' && /^[a-f0-9]{40}$/.test(value);
+export function resolveDispatch({ sourceRef, appRef, coreRef, defaultSourceRef, mode }) {
+  return validateDispatch({
+    sourceRef: sourceRef || (!appRef && !coreRef ? defaultSourceRef : ''),
+    appRef, coreRef, mode,
+  });
+}
 export function validateDispatch({ sourceRef, appRef, coreRef, mode }) {
   if (!['checks', 'candidate'].includes(mode)) throw new Error('Unsupported mode');
   if (sourceRef) {

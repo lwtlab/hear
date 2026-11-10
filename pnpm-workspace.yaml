@@ -1,0 +1,4 @@
+# Explicitly approve the locked native build scripts required by the website.
+allowBuilds:
+  esbuild: true
+  sharp: true
