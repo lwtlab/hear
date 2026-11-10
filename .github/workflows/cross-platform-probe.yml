@@ -79,7 +79,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.22.0
       - name: Validate sources and encryption
         run: |
           node --input-type=module <<'JS'

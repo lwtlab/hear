@@ -24,7 +24,7 @@ jobs:
         uses: withastro/action@v2
         with:
           path: . # The root location of your Astro project inside the repository. (optional)
-          node-version: 22
+          node-version: 24.22.0
           # 钉死版本，别再用 latest——浮动的包管理器会在无人改动仓库的情况下把部署搞挂：
           # pnpm 先是漂到 11.x（用 node:sqlite，要 Node >= 22.13，撞死在 Node 20 上），
           # 抬了 Node 之后又撞上 pnpm 10+ 的 ERR_PNPM_IGNORED_BUILDS（默认拒跑 sharp/esbuild

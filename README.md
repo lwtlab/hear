@@ -8,6 +8,10 @@ Public workflows, site deployment and product releases retain their independent 
 
 
 
+Use Node 24.22.0 (`.nvmrc`); website installation keeps pnpm 9.15.9 as pinned by the Pages workflow.
+Application CI uses pnpm 11.5.2. When this repository is nested under the private Hear workspace,
+install the independent site with `corepack pnpm@9.15.9 install --ignore-workspace --frozen-lockfile`.
+
 ## Desktop CI
 
 Pinned-source macOS checks and unsigned candidates: [operation guide](docs/desktop-ci.zh.md). Infrastructure tests: `node --test ci/*.test.mjs`. Website deployment and release feeds are unchanged.
