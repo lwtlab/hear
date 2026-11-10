@@ -27,6 +27,12 @@ The reference receives only the PID of the newly launched player and the literal
 `includetree` mode. It cannot select another process or capture a default output.
 The player remains alive until the bounded reference capture finishes.
 
+The first controls run `42839130553/1` stopped before capture on an overstrict PID
+equality assertion. That tooling failure is separate from the original silent
+capture. The reference target now comes from `GetWindowThreadProcessId` for the
+new player's HWND, with a bounded, cycle-free parent chain back to the launcher's
+still-running process. A different window or process tree is rejected.
+
 Only fixed identity, playback and independently measured signal fields are public.
 Owned sample PCM, reference WAV, command output and detailed errors are encrypted
 with seven-day retention. Reference signal and production-native signal remain

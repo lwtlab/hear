@@ -3,12 +3,13 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, lstatSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { encryptLog } from './log-crypto.mjs';
 import { waveSignal } from './owned-wave-signal.mjs';
+import { ownedWindowProcess } from './owned-window-process.mjs';
 assert.equal(process.platform, 'win32');
 const mode = process.env.WASAPI_CONTROL_MODE; assert(['baseline', 'in-process-audio'].includes(mode));
 const publicRoot = resolve(import.meta.dirname, '..');
@@ -30,7 +31,14 @@ playwright._electron.launch = async options => {
     const page = await originalFirstWindow(...args);
     await page.waitForFunction(() => document.querySelector('audio')?.currentTime > 0);
     result.playback = await page.evaluate(() => { const audio = document.querySelector('audio'); return { paused: audio.paused, muted: audio.muted, volume: audio.volume, readyState: audio.readyState, currentTime: audio.currentTime }; });
-    const pid = await app.evaluate(() => process.pid); assert.equal(pid, app.process().pid); assert(Number.isSafeInteger(pid) && pid > 0);
+    const windowId = await app.evaluate(({ BrowserWindow }) => {
+      const handle = BrowserWindow.getAllWindows()[0].getNativeWindowHandle();
+      return Number(handle.length === 8 ? handle.readBigUInt64LE() : handle.readUInt32LE());
+    });
+    const launcherPid = app.process().pid; assert.equal(app.process().exitCode, null);
+    const proof = JSON.parse(execFileSync('powershell', ['-NoProfile', '-File', join(import.meta.dirname, 'owned-window-process.ps1'), '-WindowId', String(windowId), '-LauncherPid', String(launcherPid)], { encoding: 'utf8', timeout: 15000, maxBuffer: 65536 }));
+    const pid = ownedWindowProcess({ windowId, launcherPid, proof });
+    result.windowOwnership = { launcherPid, ...proof };
     result.ownedPlayerPid = pid;
     result.ownedAppProcesses = await app.evaluate(({ app }) => app.getAppMetrics().map(metric => ({ pid: metric.pid, type: metric.type, serviceName: metric.serviceName })));
     referenceChild = spawn(reference, [String(pid), 'includetree', join(process.env.RUNNER_TEMP, 'owned-reference.wav')], { stdio: ['ignore', 'pipe', 'pipe'], timeout: 20000 });
@@ -57,7 +65,7 @@ finally {
   writeFileSync(join(publicRoot, 'diagnostics/wasapi-controls.enc.json'), JSON.stringify(encryptLog(Buffer.from(JSON.stringify({ metadata: result, ...(approvedWave ? { waveBase64: approvedWave.toString('base64') } : {}) })), process.env.HEAR_LOG_PUBLIC_KEY)));
   // Fixed scalar fields only; errors and command output remain private.
   const receipt = { diagnostic: true, releaseAcceptance: false, captureScope: result.captureScope, mode,
-    sourceRef: process.env.SOURCE_REF, workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+    sourceRef: process.env.SOURCE_REF, appPath: 'apps/hear', workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
     referenceSource: result.referenceSource, referenceSha256: result.referenceSha256, referenceStatus: result.status,
     referenceAudioSha256: result.referenceAudioSha256, referencePcm: result.referencePcm, playback: result.playback };
   writeFileSync(join(process.env.RUNNER_TEMP, 'owned-control-receipt.json'), JSON.stringify(receipt));
