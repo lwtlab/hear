@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mode: [baseline, in-process-audio]
+        mode: [baseline, in-process-audio, native-waveout]
     runs-on: windows-2025
     timeout-minutes: 20
     defaults:

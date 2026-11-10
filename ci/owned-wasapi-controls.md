@@ -33,6 +33,17 @@ capture. The reference target now comes from `GetWindowThreadProcessId` for the
 new player's HWND, with a bounded, cycle-free parent chain back to the launcher's
 still-running process. A different window or process tree is rejected.
 
+The two executed Electron modes in `42840491056/1` produced no valid native or
+Microsoft-reference PCM. A third `native-waveout` control mutes only the owned
+HTML player and spawns a bounded WAV player from its Electron main process. The
+child verifies the approved WAV digest before `Load`/`PlaySync`, records only the
+waveOut device count and Audio service state, and has a nine-second playback
+deadline independent of Electron. The controller stops and awaits the child
+before closing Electron; stop failure still attempts app close and fails cleanup. Both
+capturers still target the original owned window's process tree; no default or
+unrelated output is captured. Rendering availability is a diagnostic precondition,
+not a capture PASS. This control cannot substitute for the original Electron case.
+
 Only fixed identity, playback and independently measured signal fields are public.
 Owned sample PCM, reference WAV, command output and detailed errors are encrypted
 with seven-day retention. Reference signal and production-native signal remain
