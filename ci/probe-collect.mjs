@@ -28,10 +28,11 @@ const installers = readdirSync(root).filter(n => n.endsWith('.deb')).map(name =>
 const runtimeOrigin = existsSync(join(root, 'runtime-origin.json')) ? JSON.parse(readFileSync(join(root, 'runtime-origin.json'), 'utf8')) : undefined;
 writeFileSync('probe-artifact/probe.json', JSON.stringify({ schemaVersion: 1, diagnostic: true, releaseAcceptance: false,
  platform, sourceRef: runtimeOrigin ? (runtimeOrigin.sourceRef ?? null) : (process.env.SOURCE_REF || null), qaSourceRef: process.env.SOURCE_REF || null, sourceRepository: process.env.SOURCE_REF ? 'lwtlab/lwt-core' : undefined, appPath: process.env.SOURCE_REF ? 'apps/hear' : undefined, appRef: runtimeOrigin?.appRef ?? process.env.APP_REF, qaAppRef: process.env.APP_REF, coreRef: process.env.CORE_REF,
- workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID,
+ workflowRef: process.env.GITHUB_SHA, runId: process.env.GITHUB_RUN_ID, runAttempt: process.env.GITHUB_RUN_ATTEMPT,
  nativeCheck: process.env.NATIVE_OUTCOME, nativeBuild: process.env.NATIVE_BUILD_OUTCOME, nativeReuse: process.env.NATIVE_REUSE_OUTCOME, nativeOrigin: existsSync("core/hear-core/native-origin.json") ? JSON.parse(readFileSync("core/hear-core/native-origin.json", "utf8")) : undefined, fileFunctional: process.env.FILE_FUNCTIONAL_OUTCOME, functionalRuntime: process.env.FUNCTIONAL_RUNTIME === "true", typecheck: process.env.TYPECHECK_OUTCOME,
  archive, sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length,
  installers, linuxInstall: process.env.LINUX_INSTALL_OUTCOME, recordingDuration: process.env.RECORDING_DURATION_OUTCOME, audioPublication: process.env.AUDIO_PUBLICATION_OUTCOME, asrBoundaries: process.env.ASR_BOUNDARIES_OUTCOME, sourceDownload: process.env.SOURCE_DOWNLOAD_OUTCOME,
+ integrationTools: process.env.INTEGRATION_TOOLS_OUTCOME, unitTests: process.env.UNIT_TESTS_OUTCOME,
  runtimeCleanup: process.env.RUNTIME_CLEANUP_OUTCOME, systemAudio: process.env.SYSTEM_AUDIO_OUTCOME,
  runtimeOrigin, runtimeReuse: process.env.LINUX_RUNTIME_REUSE_OUTCOME,
  limitation: 'Diagnostic configuration and isolated product name. See nativeBuild/fileFunctional/linuxInstall outcomes separately from nativeCheck. Linux deb is a diagnostic installer. SystemAudio separately records Linux isolated virtual-output capture; no physical microphone, arbitrary application audio, dictation, release installer or signing acceptance.' }, null, 2));

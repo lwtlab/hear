@@ -52,3 +52,13 @@ test('workflow dispatch exposes monorepo input and initializes the legacy checko
     assert.ok(!/hashFiles\('app\//.test(workflow));
   }
 });
+test('monorepo workflows retain root tooling, Linux unit gates and small attempt-bound receipts', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = name => readFileSync(new URL('../.github/workflows/' + name, import.meta.url), 'utf8');
+  for (const name of ['desktop-candidates.yml', 'cross-platform-probe.yml'])
+    assert.ok(read(name).includes('core bash scripts/hear.sh check'));
+  assert.ok(read('cross-platform-probe.yml').includes('node ci/private-step.mjs unit app pnpm test:unit'));
+  assert.ok(read('cross-platform-probe.yml').includes('name: Require monorepo Linux type safety'));
+  assert.match(read('cross-platform-probe.yml'), /name: hear-probe-receipt-.*github.run_attempt.*\n\s+path: probe-artifact\/probe.json/);
+  assert.match(read('desktop-candidates.yml'), /name: hear-candidate-receipt-.*github.run_attempt.*\n\s+path: candidate\/candidate.json/);
+});

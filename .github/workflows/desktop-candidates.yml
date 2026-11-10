@@ -87,7 +87,12 @@ jobs:
       - name: Install locked dependencies
         run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - name: Test integration tools
-        run: node ci/private-step.mjs integration app pnpm test:integration-tools
+        run: |
+          if [[ "$SOURCE_LAYOUT" == monorepo ]]; then
+            node ci/private-step.mjs integration core bash scripts/hear.sh check
+          else
+            node ci/private-step.mjs integration app pnpm test:integration-tools
+          fi
       - name: Typecheck
         run: node ci/private-step.mjs typecheck app pnpm typecheck
       - name: Unit tests
@@ -111,6 +116,13 @@ jobs:
         with:
           name: hear-darwin-arm64-${{ github.run_id }}-${{ github.run_attempt }}
           path: candidate/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: success() && inputs.mode == 'candidate'
+        with:
+          name: hear-candidate-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate/candidate.json
           if-no-files-found: error
           retention-days: 14
       - name: Encrypt diagnostics and remove plaintext

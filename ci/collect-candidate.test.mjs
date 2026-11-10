@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync,
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
 const script = resolve(import.meta.dirname, 'collect-candidate.mjs');
 function setup(t) {
   const root = mkdtempSync(join(tmpdir(), 'hear-collector-')); t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -52,9 +53,16 @@ test('monorepo candidates bind application and core to one private source commit
   writeFileSync(join(release, 'AIHear-2.0.0-arm64.dmg'), 'synthetic dmg');
   writeFileSync(join(release, 'AIHear-2.0.0-arm64.zip'), 'synthetic zip');
   writeFileSync(join(app, 'apps/desktop/package.json'), '{"version":"2.0.0"}');
+  writeFileSync(join(root, 'core/.gitignore'), 'hear-core/native-origin.json\nhear-core/*.node\n');
   git(join(root, 'core'), 'add', '.');
   git(join(root, 'core'), '-c', 'user.email=test@example.invalid', '-c', 'user.name=Test', 'commit', '-m', 'monorepo inputs');
   const sourceRef = git(join(root, 'core'), 'rev-parse', 'HEAD');
+  const nativeDir = join(root, 'core/hear-core'); mkdirSync(nativeDir, { recursive: true });
+  const binary = 'synthetic native';
+  writeFileSync(join(nativeDir, 'hear-core.darwin-arm64.node'), binary);
+  const origin = { kind: 'hear-native-build', coreRef: sourceRef, clean: true, platform: 'darwin', arch: 'arm64',
+    filename: 'hear-core.darwin-arm64.node', napi: '10', sha256: createHash('sha256').update(binary).digest('hex') };
+  writeFileSync(join(nativeDir, 'native-origin.json'), JSON.stringify(origin));
   const selected = { ...env, SOURCE_LAYOUT: 'monorepo', SOURCE_REF: sourceRef, APP_REF: sourceRef, CORE_REF: sourceRef };
   assert.equal(spawnSync(process.execPath, [resolve(import.meta.dirname, 'assert-sources.mjs')], { cwd: root, env: selected }).status, 0);
   const r = spawnSync(process.execPath, [script], { cwd: root, env: selected });
@@ -63,4 +71,7 @@ test('monorepo candidates bind application and core to one private source commit
   assert.equal(manifest.schemaVersion, 2);
   assert.deepEqual(manifest.source, { repository: 'lwtlab/lwt-core', commit: sourceRef, appPath: 'apps/hear' });
   assert.equal(manifest.appRef, sourceRef); assert.equal(manifest.coreRef, sourceRef);
+  assert.deepEqual(manifest.nativeOrigin, origin);
+  writeFileSync(join(nativeDir, 'hear-core.darwin-arm64.node'), 'different native');
+  assert.notEqual(spawnSync(process.execPath, [script], { cwd: root, env: selected }).status, 0);
 });
