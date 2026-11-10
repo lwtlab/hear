@@ -1,0 +1,111 @@
+name: Hear owned Windows signal controls
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Reviewed exact source with an unexpired native-probes Windows entry
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  owned:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [baseline, in-process-audio]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      CORE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.source_ref }}
+      SOURCE_LAYOUT: monorepo
+      HEAR_APP_PATH: core/apps/hear
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      WASAPI_CONTROL_MODE: ${{ matrix.mode }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Require reviewed source and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs';
+          import { validateNativeReuse } from './ci/native-reuse.mjs';
+          import { encryptLog } from './ci/log-crypto.mjs';
+          validateNativeReuse(JSON.parse(readFileSync('manifests/native-probes.json'))['win32-x64'], 'win32-x64', process.env.SOURCE_REF);
+          encryptLog(Buffer.from('preflight'), process.env.HEAR_LOG_PUBLIC_KEY);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ inputs.source_ref }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/hear/package.json
+      - run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - name: Reuse independently qualified exact-source native binding
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/private-step.mjs native-reuse core node ../ci/native-reuse.mjs
+      - uses: actions/checkout@v4
+        with:
+          repository: microsoft/Windows-classic-samples
+          ref: 434f6002bdf9cf9829406c3ff2b33387982d6168
+          path: reference
+          sparse-checkout: Samples/ApplicationLoopback
+          persist-credentials: false
+      - name: Build pinned Microsoft application-loopback reference
+        run: node ci/private-step.mjs reference-build core powershell -NoProfile -File "$GITHUB_WORKSPACE/ci/build-wasapi-reference.ps1"
+      - id: signal
+        name: Run only owned approved-sample signal controls
+        continue-on-error: true
+        run: node ci/private-step.mjs owned-signal core node ../ci/owned-wasapi-controls.mjs
+      - name: Independently measure native signal
+        if: always()
+        env:
+          WASAPI_OWNED_OUTCOME: ${{ steps.signal.outcome }}
+        run: node ci/wasapi-outcomes.mjs
+      - name: Encrypt private diagnostics
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-owned-signal-receipt-${{ matrix.mode }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/wasapi-public-result.json
+            ${{ runner.temp }}/owned-control-receipt.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-owned-signal-encrypted-${{ matrix.mode }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Require actual native PCM signal
+        if: always()
+        run: node --input-type=module -e "import {readFileSync} from 'node:fs'; import {join} from 'node:path'; if(JSON.parse(readFileSync(join(process.env.RUNNER_TEMP,'wasapi-public-result.json'))).status!=='PASS')process.exit(1)"

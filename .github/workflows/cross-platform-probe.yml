@@ -4,6 +4,11 @@ on:
     branches: [ci/verify-platforms]
   workflow_dispatch:
     inputs:
+      owned_signal_only:
+        description: Only the diagnostic owned-player differential controls; no packaging or file/ASR acceptance
+        required: true
+        default: false
+        type: boolean
       source_ref:
         description: Full lwtlab/lwt-core SHA containing apps/hear (preferred)
         required: false
@@ -49,7 +54,14 @@ permissions:
   contents: read
   actions: read
 jobs:
+  owned_signal_controls:
+    if: inputs.owned_signal_only
+    uses: ./.github/workflows/owned-wasapi-controls.yml
+    with:
+      source_ref: ${{ inputs.source_ref }}
+    secrets: inherit
   probe:
+    if: ${{ !inputs.owned_signal_only }}
     strategy:
       fail-fast: false
       matrix:

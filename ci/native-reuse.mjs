@@ -15,6 +15,10 @@ export function validateNativeReuse(entry, platform, coreRef) {
     || !/^[a-f0-9]{40}$/.test(entry.workflowRef)) throw new Error('No reviewed native runtime for this exact source/platform; build fresh');
   return entry;
 }
+export function validateNativeBytes(entry, bytes) {
+  if (entry.sha256 !== undefined && (!/^[a-f0-9]{64}$/.test(entry.sha256) || createHash('sha256').update(bytes).digest('hex') !== entry.sha256))
+    throw new Error('Native binding digest mismatch');
+}
 async function main() {
   const platform = `${process.platform}-${process.arch}`;
   const manifest = JSON.parse(readFileSync(new URL('../manifests/native-probes.json', import.meta.url), 'utf8'));
@@ -37,6 +41,7 @@ async function main() {
     writeFileSync(join(work, entry.filename), unpack.stdout);
   }
   const core = resolve('hear-core');
+  validateNativeBytes(entry, readFileSync(join(work, entry.filename)));
   copyFileSync(join(work, entry.filename), join(core, entry.filename));
   writeFileSync(join(core, 'native-origin.json'), JSON.stringify(entry));
   const require = createRequire(join(core, 'package.json'));

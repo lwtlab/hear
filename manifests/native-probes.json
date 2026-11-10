@@ -1,12 +1,22 @@
 {
   "win32-x64": {
-    "coreRef": "03a68292b9b4ebc06e1e5249914c8f0cbde80d3b",
-    "appRef": "10e5d547916b3bc36691fd72b7e4d64fc84b9b68",
-    "workflowRef": "07f94c0f0f1929db8de005b16a6cf8d582c0f752",
-    "runId": "42026132323",
-    "artifactId": "13414312916",
-    "archiveSha256": "1c7b4e14b1366cc809a9021c7cf0fbe662185f22864d9bfdf3dff5e91be47af4",
-    "filename": "hear-core.win32-x64-msvc.node"
+    "schemaVersion": 1,
+    "kind": "hear-native-build",
+    "coreRef": "6254636e50575e46dec19956744dd74642fede32",
+    "clean": true,
+    "platform": "win32",
+    "arch": "x64",
+    "napi": "10",
+    "filename": "hear-core.win32-x64-msvc.node",
+    "sha256": "6bfadd327856a79ad4e6df3fb9715e4058b5afe9950a987d3537e8f27d9a2867",
+    "appRef": "6254636e50575e46dec19956744dd74642fede32",
+    "workflowRef": "665c9ef5668f9fcabcce6055b1e6776f87d8f5ce",
+    "runId": "42833844254",
+    "runAttempt": "1",
+    "artifactId": "13773371385",
+    "archiveSha256": "4e0a889fcb35c24d6f0219b4099a92c12f0ae83043c5105cff31ddd3ddbc969f",
+    "receiptArtifactId": "13773892397",
+    "receiptArchiveSha256": "1afe22fba1962e215d97c2c70449ff2c0487946ad2a5f6a72863cf230512fad1"
   },
   "linux-x64": {
     "coreRef": "03a68292b9b4ebc06e1e5249914c8f0cbde80d3b",

@@ -1,8 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { validateNativeReuse } from './native-reuse.mjs';
+import { validateNativeReuse, validateNativeBytes } from './native-reuse.mjs';
+import { createHash } from 'node:crypto';
 const entry = JSON.parse(readFileSync(new URL('../manifests/native-probes.json', import.meta.url)))["win32-x64"];
+test('modern reviewed native bytes must match the retained native digest', () => {
+  const bytes = Buffer.from('owned diagnostic native bytes');
+  const sha256 = createHash('sha256').update(bytes).digest('hex');
+  validateNativeBytes({ sha256 }, bytes);
+  assert.throws(() => validateNativeBytes({ sha256 }, Buffer.from('different bytes')));
+  assert.throws(() => validateNativeBytes({ sha256: '' }, bytes));
+});
 
 test('accepts only the reviewed exact-source binding', () => {
   assert.equal(validateNativeReuse(entry, 'win32-x64', entry.coreRef), entry);
