@@ -10,20 +10,26 @@ try {
   $result.sampleSha256 = $hash
   Add-Type -TypeDefinition @'
 using System;
-using System.Media;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 public static class OwnedWaveOut {
   [DllImport("winmm.dll")] public static extern uint waveOutGetNumDevs();
-  public static bool PlayBounded(string path) {
-    var task = Task.Run(() => {
-      using (var player = new SoundPlayer(path)) {
-        player.Load();
-        if (!player.IsLoadCompleted) throw new InvalidOperationException("Approved sample did not load");
-        player.PlaySync();
-      }
-    });
-    return task.Wait(9000);
+  [DllImport("winmm.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+  [return: MarshalAs(UnmanagedType.Bool)]
+  private static extern bool PlaySoundW(string sound, IntPtr module, uint flags);
+  public static bool ApiSucceeded { get; private set; }
+  public static long PlaybackElapsedMs { get; private set; }
+  public static void PlayBounded(string path) {
+    var watch = Stopwatch.StartNew();
+    // SND_FILENAME | SND_NODEFAULT | SND_SYNC. Check the native BOOL directly;
+    // SoundPlayer.PlaySync discards it and can silently return on failure.
+    var task = Task.Run(() => PlaySoundW(path, IntPtr.Zero, 0x00020002));
+    if (!task.Wait(9000)) throw new TimeoutException("Owned playback timeout");
+    PlaybackElapsedMs = watch.ElapsedMilliseconds;
+    ApiSucceeded = task.Result;
+    if (!ApiSucceeded) throw new InvalidOperationException("PlaySoundW rejected approved-sample playback");
+    if (PlaybackElapsedMs < 6000) throw new InvalidOperationException("Approved 6.54-second sample did not play for its duration");
   }
 }
 '@
@@ -31,9 +37,15 @@ public static class OwnedWaveOut {
   $result.audioService = [string](Get-Service Audiosrv).Status
   $result.status = 'RUNNING'; Save-Result
   if ($result.waveOutDeviceCount -eq 0) { throw 'No waveOut playback device is available' }
-  if (-not [OwnedWaveOut]::PlayBounded($Sample)) { throw 'Owned playback timeout' }
+  [OwnedWaveOut]::PlayBounded($Sample)
   $result.status = 'PASS'
 } catch { $result.status = 'FAIL'; $result.error = [string]$_ }
-finally { Save-Result }
+finally {
+  if ('OwnedWaveOut' -as [type]) {
+    $result.playSoundSucceeded = [OwnedWaveOut]::ApiSucceeded
+    $result.playbackElapsedMs = [OwnedWaveOut]::PlaybackElapsedMs
+  }
+  Save-Result
+}
 # Self-bounded even if the Electron parent is terminated before its cleanup runs.
 if ($result.status -ne 'PASS') { [Environment]::Exit(1) }
