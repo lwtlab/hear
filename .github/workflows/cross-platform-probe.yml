@@ -60,11 +60,10 @@ jobs:
       run:
         shell: bash
     env:
-      SOURCE_REF: ${{ inputs.source_ref || (github.event_name == 'push' && vars.HEAR_VERIFY_SOURCE_SHA) || '' }}
-      EXPLICIT_APP_REF: ${{ inputs.app_ref }}
-      EXPLICIT_CORE_REF: ${{ inputs.core_ref }}
-      APP_REF: ${{ inputs.app_ref || vars.HEAR_VERIFY_APP_SHA }}
-      CORE_REF: ${{ inputs.core_ref || vars.HEAR_VERIFY_CORE_SHA }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+      DEFAULT_SOURCE_REF: ${{ vars.HEAR_VERIFY_SOURCE_SHA }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
@@ -83,11 +82,11 @@ jobs:
       - name: Validate sources and encryption
         run: |
           node --input-type=module <<'JS'
-          import {validateDispatch} from './ci/dispatch.mjs';
+          import {resolveDispatch} from './ci/dispatch.mjs';
           import {encryptLog} from './ci/log-crypto.mjs';
-          const source = validateDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.SOURCE_REF ? process.env.EXPLICIT_APP_REF : process.env.APP_REF, coreRef: process.env.SOURCE_REF ? process.env.EXPLICIT_CORE_REF : process.env.CORE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
+          const source = resolveDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF, defaultSourceRef: process.env.DEFAULT_SOURCE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
           const { appendFileSync } = await import('node:fs');
-          appendFileSync(process.env.GITHUB_ENV, `SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `SOURCE_REF=${source.sourceRef ?? ''}\nSOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
           encryptLog(Buffer.from('probe'),process.env.HEAR_LOG_PUBLIC_KEY);
           if (process.env.REUSE_LINUX_RUNTIME === 'true' && (process.env.PROBE_TARGET !== 'linux-x64' || process.env.PROBE_NATIVE_CHECK !== 'false' || process.env.PROBE_FUNCTIONAL_RUNTIME !== 'true')) throw new Error('Linux installer replay requires linux-x64, native_check=false, functional_runtime=true');
           JS
@@ -112,7 +111,7 @@ jobs:
         run: node ci/assert-sources.mjs
       - uses: pnpm/action-setup@v4
         with:
-          version: 11.5.2
+          package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux native build dependencies
         if: runner.os == 'Linux'
