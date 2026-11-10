@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { generateKeyPairSync } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { test } from 'node:test';
+import { decryptLog } from './log-crypto.mjs';
+const ci = resolve(import.meta.dirname);
+test('failed private output is sealed, never echoed, and plaintext is removed', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hear-ci-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, 'app'));
+  const env = { ...process.env, RUNNER_TEMP: dir };
+  const result = spawnSync(process.execPath, [join(ci, 'private-step.mjs'), 'unit', 'app', process.execPath, '-e', 'console.error("PRIVATE_SENTINEL");process.exit(23)'], { cwd: dir, env, encoding: 'utf8' });
+  assert.equal(result.status, 1);
+  assert.ok(!(result.stdout + result.stderr).includes('PRIVATE_SENTINEL'));
+  const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+  env.HEAR_LOG_PUBLIC_KEY = keys.publicKey.export({ type: 'spki', format: 'pem' });
+  const seal = spawnSync(process.execPath, [join(ci, 'seal-log.mjs')], { cwd: dir, env });
+  assert.equal(seal.status, 0);
+  assert.ok(!existsSync(join(dir, 'hear-private.log')));
+  const envelope = JSON.parse(readFileSync(join(dir, 'diagnostics/build-log.enc.json')));
+  assert.ok(decryptLog(envelope, keys.privateKey).toString().includes('PRIVATE_SENTINEL'));
+});
+test('invalid encryption key fails closed and removes plaintext', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'hear-ci-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  mkdirSync(join(dir, 'app'));
+  const env = { ...process.env, RUNNER_TEMP: dir, HEAR_LOG_PUBLIC_KEY: 'invalid' };
+  spawnSync(process.execPath, [join(ci, 'private-step.mjs'), 'unit', 'app', process.execPath, '-e', 'console.log("private")'], { cwd: dir, env });
+  const seal = spawnSync(process.execPath, [join(ci, 'seal-log.mjs')], { cwd: dir, env });
+  assert.notEqual(seal.status, 0); assert.ok(!existsSync(join(dir, 'hear-private.log')));
+});
