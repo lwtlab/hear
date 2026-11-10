@@ -248,6 +248,16 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
+      - id: wasapi_owned
+        name: Windows owned approved-sample process signal (diagnostic)
+        if: always() && !cancelled() && runner.os == 'Windows' && inputs.functional_runtime && env.SOURCE_LAYOUT == 'monorepo' && (steps.native_build.outcome == 'success' || steps.native_reuse.outcome == 'success') && hashFiles(format('{0}/scripts/windows-owned-audio-probe.mjs', env.HEAR_APP_PATH)) != ''
+        continue-on-error: true
+        run: node ci/private-step.mjs wasapi-owned app node scripts/windows-owned-audio-probe.mjs "$RUNNER_TEMP/hear-wasapi-owned"
+      - name: Retain independently checked Windows signal outcome
+        if: always() && runner.os == 'Windows' && inputs.functional_runtime
+        env:
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
+        run: node ci/wasapi-outcomes.mjs
       - id: system_audio
         name: Linux isolated OS output capture and live captions
         if: runner.os == 'Linux' && inputs.functional_runtime
@@ -278,6 +288,7 @@ jobs:
           SOURCE_DOWNLOAD_OUTCOME: ${{ steps.source_download.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
           RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
         run: node ci/probe-collect.mjs
