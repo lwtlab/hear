@@ -29,6 +29,11 @@ on:
         required: true
         default: false
         type: boolean
+      windows_owned_signal:
+        description: Run owned-player Windows process-loopback diagnostic; false records NOT_RUN
+        required: true
+        default: true
+        type: boolean
       reuse_native:
         description: Reuse a reviewed exact-core native artifact; expiry requires a fresh build
         required: true
@@ -72,6 +77,7 @@ jobs:
       PROBE_TARGET: ${{ inputs.target }}
       PROBE_NATIVE_CHECK: ${{ inputs.native_check }}
       PROBE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      WASAPI_OWNED_REQUESTED: ${{ github.event_name != 'workflow_dispatch' || inputs.windows_owned_signal }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -250,7 +256,7 @@ jobs:
           node ci/file-outcomes.mjs
       - id: wasapi_owned
         name: Windows owned approved-sample process signal (diagnostic)
-        if: always() && !cancelled() && runner.os == 'Windows' && inputs.functional_runtime && env.SOURCE_LAYOUT == 'monorepo' && (steps.native_build.outcome == 'success' || steps.native_reuse.outcome == 'success') && hashFiles(format('{0}/scripts/windows-owned-audio-probe.mjs', env.HEAR_APP_PATH)) != ''
+        if: always() && !cancelled() && runner.os == 'Windows' && inputs.functional_runtime && env.WASAPI_OWNED_REQUESTED == 'true' && env.SOURCE_LAYOUT == 'monorepo' && (steps.native_build.outcome == 'success' || steps.native_reuse.outcome == 'success') && hashFiles(format('{0}/scripts/windows-owned-audio-probe.mjs', env.HEAR_APP_PATH)) != ''
         continue-on-error: true
         run: node ci/private-step.mjs wasapi-owned app node scripts/windows-owned-audio-probe.mjs "$RUNNER_TEMP/hear-wasapi-owned"
       - name: Retain independently checked Windows signal outcome

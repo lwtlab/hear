@@ -8,8 +8,9 @@ import { encryptLog } from './log-crypto.mjs';
 const digest = data => createHash('sha256').update(data).digest('hex');
 const sha = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
 const sample = '1577c1b3a7b62d24513c94bacca2e431555b5a1e0f4d43af235bf3296db87c67';
-export function wasapiOutcome(raw, pcm, { sourceRef, outcome }) {
-  const result = { diagnostic: true, releaseAcceptance: false, captureScope: 'owned-approved-sample-player-only', status: outcome === 'skipped' || !outcome ? 'NOT_RUN' : 'FAIL' };
+export function wasapiOutcome(raw, pcm, { sourceRef, outcome, requested = true }) {
+  const result = { diagnostic: true, releaseAcceptance: false, captureScope: 'owned-approved-sample-player-only', requested, status: outcome === 'skipped' || !outcome ? 'NOT_RUN' : 'FAIL' };
+  if (!requested) return { ...result, reason: result.status === 'NOT_RUN' ? 'deferred-by-dispatch' : 'dispatch-exclusion-violated', ...(/^[a-f0-9]{40}$/.test(sourceRef ?? '') ? { sourceRef } : {}) };
   if (!raw || !/^[a-f0-9]{40}$/.test(sourceRef ?? '') || raw.captureScope !== result.captureScope || raw.diagnostic !== true || raw.releaseAcceptance !== false || raw.sampleSha256 !== sample) return result;
   const n = raw.native;
   if (n?.schemaVersion !== 1 || n.kind !== 'hear-native-build' || n.coreRef !== sourceRef || n.clean !== true || n.platform !== 'win32' || n.arch !== 'x64' || n.napi !== process.versions.napi || n.filename !== 'hear-core.win32-x64-msvc.node' || !sha(n.sha256)) return result;
@@ -35,14 +36,15 @@ function boundedFile(file, limit) {
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const directory = join(process.env.RUNNER_TEMP, 'hear-wasapi-owned');
+  const requested = process.env.WASAPI_OWNED_REQUESTED !== 'false';
   let raw, pcm, result;
   try {
-    const data = boundedFile(join(directory, 'wasapi-result.json'), 65536);
+    const data = requested ? boundedFile(join(directory, 'wasapi-result.json'), 65536) : null;
     raw = data ? JSON.parse(data) : null;
-    pcm = boundedFile(join(directory, 'owned-player.f32le'), 2 * 1024 * 1024);
-    result = wasapiOutcome(raw, pcm, { sourceRef: process.env.SOURCE_REF, outcome: process.env.WASAPI_OWNED_OUTCOME });
+    pcm = requested ? boundedFile(join(directory, 'owned-player.f32le'), 2 * 1024 * 1024) : null;
+    result = wasapiOutcome(raw, pcm, { sourceRef: process.env.SOURCE_REF, outcome: process.env.WASAPI_OWNED_OUTCOME, requested });
     // Do not retain unbound bytes or report text as public artifacts.
-    if (result.sourceRef) {
+    if (requested && result.sourceRef) {
       mkdirSync('diagnostics', { recursive: true });
       writeFileSync('diagnostics/owned-wasapi.enc.json', JSON.stringify(encryptLog(Buffer.from(JSON.stringify({ metadata: raw, ...(result.savedAudioSha256 ? { pcmF32le: pcm.toString('base64') } : {}) })), process.env.HEAR_LOG_PUBLIC_KEY)));
     }

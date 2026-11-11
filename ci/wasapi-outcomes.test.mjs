@@ -28,6 +28,49 @@ test('silent noise, wrong sources, dirty native inputs and cleanup failure never
   assert.equal(wasapiOutcome(null,null,{sourceRef,outcome:'skipped'}).status,'NOT_RUN');
 });
 
+test('explicit deferral cannot promote existing signal evidence or a run that ignored dispatch', () => {
+  const f = fixture();
+  const deferred = wasapiOutcome(f.raw, f.pcm, { ...f.identity, outcome: 'skipped', requested: false });
+  assert.equal(deferred.status, 'NOT_RUN');
+  assert.equal(deferred.reason, 'deferred-by-dispatch');
+  assert.equal(deferred.sourceRef, sourceRef);
+  assert.equal(deferred.requested, false);
+  assert.equal(deferred.pcm, undefined);
+  assert.equal(wasapiOutcome(f.raw, f.pcm, { ...f.identity, requested: false }).status, 'FAIL');
+});
+
+test('deferred CLI neither reads stale diagnostic bytes nor encrypts them', t => {
+  const scratch = mkdtempSync(join(tmpdir(), 'hear-wasapi-deferred-'));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  const directory = join(scratch, 'hear-wasapi-owned'); mkdirSync(directory);
+  writeFileSync(join(directory, 'wasapi-result.json'), 'invalid stale private diagnostic');
+  const run = spawnSync(process.execPath, [fileURLToPath(new URL('./wasapi-outcomes.mjs', import.meta.url))], {
+    cwd: scratch, encoding: 'utf8', env: { ...process.env, RUNNER_TEMP: scratch, SOURCE_REF: sourceRef,
+      WASAPI_OWNED_REQUESTED: 'false', WASAPI_OWNED_OUTCOME: 'skipped', HEAR_LOG_PUBLIC_KEY: '' },
+  });
+  assert.equal(run.status, 0, run.stderr);
+  const published = JSON.parse(readFileSync(join(scratch, 'wasapi-public-result.json')));
+  assert.equal(published.status, 'NOT_RUN');
+  assert.equal(published.reason, 'deferred-by-dispatch');
+  assert.equal(published.requested, false);
+  assert.equal(published.sourceRef, sourceRef);
+  assert(!run.stdout.includes('private diagnostic'));
+  assert.throws(() => readFileSync(join(scratch, 'diagnostics/owned-wasapi.enc.json')), { code: 'ENOENT' });
+});
+
+test('only the owned signal step observes dispatch deferral; native and file gates remain', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/cross-platform-probe.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /windows_owned_signal:\n\s+description:.*\n\s+required: true\n\s+default: true\n\s+type: boolean/);
+  assert.match(workflow, /WASAPI_OWNED_REQUESTED: \$\{\{ github.event_name != 'workflow_dispatch' \|\| inputs.windows_owned_signal \}\}/);
+  const steps = workflow.split(/\n      - /);
+  const guarded = steps.filter(step => step.includes("env.WASAPI_OWNED_REQUESTED == 'true'"));
+  assert.equal(guarded.length, 1);
+  assert.match(guarded[0], /^id: wasapi_owned/);
+  for (const id of ['native_build', 'file_functional', 'system_audio']) {
+    assert(steps.some(step => step.startsWith(`id: ${id}\n`)));
+  }
+});
+
 test('source-bound pre-PCM failure metadata is encrypted and never published', t => {
   const scratch = mkdtempSync(join(tmpdir(), 'hear-wasapi-outcome-'));
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
