@@ -29,6 +29,11 @@ on:
         required: true
         default: false
         type: boolean
+      windows_owned_signal:
+        description: Run owned-player Windows process-loopback diagnostic; false records NOT_RUN
+        required: true
+        default: true
+        type: boolean
       reuse_native:
         description: Reuse a reviewed exact-core native artifact; expiry requires a fresh build
         required: true
@@ -72,6 +77,7 @@ jobs:
       PROBE_TARGET: ${{ inputs.target }}
       PROBE_NATIVE_CHECK: ${{ inputs.native_check }}
       PROBE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      WASAPI_OWNED_REQUESTED: ${{ github.event_name != 'workflow_dispatch' || inputs.windows_owned_signal }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,7 +125,7 @@ jobs:
           timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
           packages=(xvfb x11-utils apparmor pulseaudio pulseaudio-utils)
           if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev libpulse-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
-          timeout 300 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y "${packages[@]}"
+          timeout 600 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends "${packages[@]}"
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -248,6 +254,16 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
+      - id: wasapi_owned
+        name: Windows owned approved-sample process signal (diagnostic)
+        if: always() && !cancelled() && runner.os == 'Windows' && inputs.functional_runtime && env.WASAPI_OWNED_REQUESTED == 'true' && env.SOURCE_LAYOUT == 'monorepo' && (steps.native_build.outcome == 'success' || steps.native_reuse.outcome == 'success') && hashFiles(format('{0}/scripts/windows-owned-audio-probe.mjs', env.HEAR_APP_PATH)) != ''
+        continue-on-error: true
+        run: node ci/private-step.mjs wasapi-owned app node scripts/windows-owned-audio-probe.mjs "$RUNNER_TEMP/hear-wasapi-owned"
+      - name: Retain independently checked Windows signal outcome
+        if: always() && runner.os == 'Windows' && inputs.functional_runtime
+        env:
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
+        run: node ci/wasapi-outcomes.mjs
       - id: system_audio
         name: Linux isolated OS output capture and live captions
         if: runner.os == 'Linux' && inputs.functional_runtime
@@ -278,6 +294,7 @@ jobs:
           SOURCE_DOWNLOAD_OUTCOME: ${{ steps.source_download.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
           RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
         run: node ci/probe-collect.mjs
