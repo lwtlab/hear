@@ -18,7 +18,7 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, linux-x64, win32-x64, darwin-arm64]
+        options: [all, linux-x64, win32-x64, darwin-arm64, source-unix]
       native_check:
         description: Run native cargo check; disable only for runtime packaging rechecks
         required: true
@@ -54,7 +54,93 @@ permissions:
   contents: read
   actions: read
 jobs:
+  source-catalog:
+    if: inputs.target == 'source-unix'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: linux-x64, os: ubuntu-24.04 }
+          - { id: darwin-arm64, os: macos-26 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.source_ref }}
+      CORE_REF: ${{ inputs.source_ref }}
+      SOURCE_LAYOUT: monorepo
+      HEAR_APP_PATH: core/apps/hear
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      SOURCE_NATIVE_CHECK: ${{ inputs.native_check }}
+      SOURCE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      SOURCE_REUSE_NATIVE: ${{ inputs.reuse_native }}
+      SOURCE_REUSE_RUNTIME: ${{ inputs.reuse_linux_runtime }}
+      SOURCE_WINDOWS_SIGNAL: ${{ inputs.windows_owned_signal }}
+      SOURCE_APP_REF: ${{ inputs.app_ref }}
+      SOURCE_CORE_REF: ${{ inputs.core_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate explicit source-only scope
+        run: node ci/source-catalog.mjs --start
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.SOURCE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify immutable source ownership
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/hear/package.json
+      - name: Link source core
+        run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - name: Install frozen source dependencies
+        run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - id: source_checks
+        name: Execute shared catalog source scope
+        run: node ci/private-step.mjs source-catalog core node scripts/verify-hear.mjs --profile full
+      - id: source_result
+        name: Collect independently validated bounded source receipt
+        if: always()
+        env:
+          SOURCE_EXECUTION_OUTCOME: ${{ steps.source_checks.outcome }}
+        run: node ci/source-catalog.mjs --collect
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.source_result.outcome == 'success'
+        with:
+          name: hear-source-receipt-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: source-catalog-receipt/verification.json
+          retention-days: 7
+          if-no-files-found: error
+      - if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-source-encrypted-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Require complete actual source execution
+        if: always()
+        env:
+          SOURCE_EXECUTION_OUTCOME: ${{ steps.source_checks.outcome }}
+        run: node ci/source-catalog.mjs --require-pass
   probe:
+    if: inputs.target != 'source-unix'
     strategy:
       fail-fast: false
       matrix:
