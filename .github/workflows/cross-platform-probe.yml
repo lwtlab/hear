@@ -421,6 +421,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node ci/private-step.mjs linux-runtime-reuse app node "$GITHUB_WORKSPACE/ci/linux-runtime-reuse.mjs"
+      - uses: actions/setup-go@v5
+        if: ${{ !inputs.reuse_linux_runtime }}
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Verify artifact privacy scanner version
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: test "$(gitleaks version)" = '8.30.1'
       - id: diagnostic_package
         name: Package diagnostic runtime (not a release)
         if: ${{ !inputs.reuse_linux_runtime }}
