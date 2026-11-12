@@ -6,7 +6,7 @@ targets and source/operator pins remain separate. Do not merge the base branch w
 draft PR is open.
 
 The private checkout is the tested merge. Its parents must be exactly base then head. The public
-adapter pins all eight executable modules plus four build/control entrypoints, validates them before
+adapter pins all nine executable modules plus four build/control entrypoints, validates them before
 the first private plan CLI, and revalidates clean source and pins immediately before the full driver.
 Preparation initializes only the required aspeak/srtparse submodules before the stable snapshot.
 No whole-tree recursive submodule initialization, cache restore or native reuse occurs.
@@ -31,3 +31,19 @@ This qualifies only macOS arm64 compilation and scripted GUI on its exact tested
 no genuine model inference, signed installation, upgrade/uninstall, system audio or physical audio
 acceptance. Linux/Windows ownership, product selection, four real change-class gate qualifications,
 default 14/33/CPU contexts and required-check rollout remain separate. No Release/site deployment.
+
+
+Informational live progress for the optional native/GUI scope is projected by the public
+`desktop-task-progress.mjs` observer while the private step runs. The private producer writes only
+catalog-whitelisted ID/status/duration rows; the public observer independently filters them, checks
+the one fresh report's source/scope/contract/run identity, bounds reads and ignores incomplete rows.
+Each complete row is consumed once: a previously rejected early PASS cannot become valid on a later
+poll. Rewritten/truncated streams are abandoned. Unknown tasks, private reasons/case names/output,
+links and oversized data never reach stdout or the job summary.
+
+`hear-desktop-task-progress-<run>-<attempt>` retains only the bounded observational JSON (seven days),
+with exact head/base/test merge/workflow/run/attempt and policy/contract. Preparation before the graph
+wrapper and wrapper duration are separate informational measures. Missing/invalid progress is not a
+successful result and cannot supply native/GUI acceptance; `--collect` and `--require-pass` never
+consume it. A failed child remains failed even when observed task rows say PASS. The final receipt,
+its three authenticated diagnostic envelopes and independent recomputation remain mandatory.

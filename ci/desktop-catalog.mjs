@@ -13,7 +13,8 @@ export const POLICY = 'reader-hear-source-execution-v1';
 export const CONTRACT = '677f68bdf7fb8c8aae2e0764a0cd0df0ed491b86416d2f59834448f6915052fe';
 export const GRAPH = '8c9143e65fdc143ce34e97ae8d16afbea6a023745de4b63d412a587248d27e03';
 export const PINS = {
-  "scripts/verify-hear.mjs": "8a3b24db5f3b8c32b479fb7144eef31373fcb502418c42f78545583b2284c586",
+  "scripts/verify-hear.mjs": "8fd6737471ea3ddeea6bb530afa0520f27eff02b2aa7232d0cda67d2bc243c39",
+  "scripts/verify-hear-progress.mjs": "6dc15dc589dca09305247629faaf6b632b7af5022dbb50f5a75d7247d7a66109",
   "scripts/hear-native.mjs": "c202936d2d7059e74fbf6d36025ed4b04318e85289b4d65facd45e0948ad1162",
   "scripts/verification-execution.mjs": "c9ff6cf3fb37bffd87eb68d9cff054a916d676b959d017248b0899a95610e78c",
   "scripts/verify-reuse.mjs": "76a80842b4f91b111ac7e4cb4f915ce31a57c496e067b116c492bc49b9137ae9",
@@ -39,7 +40,7 @@ function ordinary(file,maximum) {
   const info=lstatSync(file);assert(info.isFile()&&!info.isSymbolicLink()&&info.size<=maximum);return readFileSync(file);
 }
 export function verifyImplementation(core) {
-  core=realpathSync(core);assert.equal(Object.keys(PINS).length,12);
+  core=realpathSync(core);assert.equal(Object.keys(PINS).length,13);
   for(const [name,hash]of Object.entries(PINS)) {
     const file=join(core,name);assert.equal(realpathSync(file),file);assert.equal(digest(ordinary(file,1024*1024)),hash,'Changed desktop executor graph');
   }

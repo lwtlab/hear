@@ -149,6 +149,13 @@ jobs:
           path: diagnostics/desktop-*.enc.json
           retention-days: 7
           if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-desktop-task-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: desktop-catalog-progress/progress.json
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Require fresh native and scripted GUI success
         if: always()
         env:
