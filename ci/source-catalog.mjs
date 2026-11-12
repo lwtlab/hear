@@ -8,8 +8,8 @@ import { encryptLog } from './log-crypto.mjs';
 
 export const SOURCE_TASKS = ['hear-tools', 'hear-types', 'hear-unit'];
 export const SOURCE_POLICY = 'reader-hear-source-execution-v1';
-export const SOURCE_CONTRACT = 'b0d0b4e45767454633f3f2f5ba29c7df4344a398863ac319226781b775315278';
-export const SOURCE_GRAPH = '9f3d77a129fca4ad1c4177b5e50fa5b3e4d2f10eca9b6218487dda4ebe3a752a';
+export const SOURCE_CONTRACT = '95c12a36267050fcd87fa52d32f1a4684d83595607d6183688c163cdbfa6fcc3';
+export const SOURCE_GRAPH = 'c088c4be884403866893a639283d246082d5f343bfc8ef0c31b42694c9a0836f';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const hex = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
 const duration = value => Number.isSafeInteger(value) && value >= 0 && value <= 3600000;
@@ -54,6 +54,7 @@ export function sourceResult(bytes, identity, execution, startedAt, now = Date.n
       assert(['PASS', 'FAIL', 'NOT_RUN'].includes(task.status)); assert(duration(task.durationMs));
       if (task.status === 'PASS') { assert.equal(task.exitCode, 0); assert(report.tasks.slice(0, index).every(prerequisite => prerequisite.status === 'PASS')); }
       if (task.status === 'FAIL') assert(task.exitCode !== 0);
+      if(task.id==='hear-unit'&&task.status==='PASS'){assert(Number.isSafeInteger(task.tests?.passed)&&task.tests.passed>0);assert.equal(task.tests.failed,0);assert(Array.isArray(task.tests.skipped));}
     }
     result.validation = 'PASS'; result.summarySha256 = digest(bytes);
     result.tasks = report.tasks.map(({ id, status, durationMs }) => ({ id, status, durationMs }));

@@ -17,7 +17,7 @@ function fixture() {
   return {
     schemaVersion:1,kind:'hear-source-verification',runId,scope:'hear-source',profile:'full',status:'PASS',environmentPolicy:'hear-source-defaults-v1',host:{platform:process.platform,arch:process.arch,node:'v24.22.0'},
     source,sourceAfter:{...source},inputs,inputsAfter:{...inputs},startedAt:new Date(begin).toISOString(),endedAt:new Date(begin+100).toISOString(),durationMs:100,
-    tasks:SOURCE_TASKS.map(id=>({id,status:'PASS',exitCode:0,durationMs:10,reason:'PRIVATE-DIAGNOSTIC'})),
+    tasks:SOURCE_TASKS.map(id=>({id,status:'PASS',exitCode:0,durationMs:10,reason:'PRIVATE-DIAGNOSTIC',...(id==='hear-unit'?{tests:{passed:1,failed:0,skipped:[]}}:{})})),
     catalogExecution:{policy:SOURCE_POLICY,scope:'hear-source',profile:'full',selectionApplied:false,contractSha256:SOURCE_CONTRACT,status:'PASS',tasks:SOURCE_TASKS.map(id=>({id,status:'PASS'}))},
   };
 }
@@ -86,7 +86,7 @@ test('active locks cannot pass; invalid symlink bytes are neither read nor relay
 });
 test('workflow source-only target is explicit and leaves the original probe intact', () => {
   const text=readFileSync(new URL('../.github/workflows/cross-platform-probe.yml',import.meta.url),'utf8');
-  assert.match(text,/options: \[all, linux-x64, win32-x64, darwin-arm64, source-unix\]/);
+  assert.match(text,/options: \[all, linux-x64, win32-x64, darwin-arm64, source-unix, desktop-macos\]/);
   assert.match(text,/source-catalog:\n\s+if: inputs.target == 'source-unix'/);
   assert.match(text,/probe:\n\s+if: inputs.target != 'source-unix'/);
   assert.match(text,/run: node ci\/private-step.mjs source-catalog core node scripts\/verify-hear.mjs --profile full/);
