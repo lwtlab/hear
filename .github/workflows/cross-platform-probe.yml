@@ -8,6 +8,18 @@ on:
         description: Full lwtlab/lwt-core SHA containing apps/hear (preferred)
         required: false
         type: string
+      base_ref:
+        description: Desktop catalog immutable private base SHA
+        required: false
+        type: string
+      test_merge_ref:
+        description: Desktop catalog tested merge SHA with base/head parents
+        required: false
+        type: string
+      pr_number:
+        description: Desktop catalog private PR number
+        required: false
+        type: string
       app_ref:
         required: false
         type: string
@@ -18,7 +30,7 @@ on:
         required: true
         default: all
         type: choice
-        options: [all, linux-x64, win32-x64, darwin-arm64]
+        options: [all, linux-x64, win32-x64, darwin-arm64, source-unix, desktop-macos]
       native_check:
         description: Run native cargo check; disable only for runtime packaging rechecks
         required: true
@@ -28,6 +40,11 @@ on:
         description: Build and load native module plus CPU ASR and bundled LGPL FFmpeg (strict)
         required: true
         default: false
+        type: boolean
+      windows_owned_signal:
+        description: Run owned-player Windows process-loopback diagnostic; false records NOT_RUN
+        required: true
+        default: true
         type: boolean
       reuse_native:
         description: Reuse a reviewed exact-core native artifact; expiry requires a fresh build
@@ -49,7 +66,188 @@ permissions:
   contents: read
   actions: read
 jobs:
+  desktop-catalog:
+    if: inputs.target == 'desktop-macos'
+    runs-on: macos-26
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: bash
+    env:
+      HEAD_REF: ${{ inputs.source_ref }}
+      BASE_REF: ${{ inputs.base_ref }}
+      TESTED_REF: ${{ inputs.test_merge_ref }}
+      DESKTOP_APP_REF: ${{ inputs.app_ref }}
+      DESKTOP_CORE_REF: ${{ inputs.core_ref }}
+      DESKTOP_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      DESKTOP_REUSE_NATIVE: ${{ inputs.reuse_native }}
+      DESKTOP_REUSE_RUNTIME: ${{ inputs.reuse_linux_runtime }}
+      DESKTOP_WINDOWS_SIGNAL: ${{ inputs.windows_owned_signal }}
+      PR_NUMBER: ${{ inputs.pr_number }}
+      SOURCE_REF: ${{ inputs.test_merge_ref }}
+      APP_REF: ${{ inputs.test_merge_ref }}
+      CORE_REF: ${{ inputs.test_merge_ref }}
+      SOURCE_LAYOUT: monorepo
+      HEAR_APP_PATH: core/apps/hear
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate explicit desktop scope and encryption
+        run: node ci/desktop-catalog.mjs --start
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.TESTED_REF }}
+          path: core
+          fetch-depth: 2
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify independent executor pins before private execution
+        run: node ci/desktop-catalog.mjs --verify-input
+      - name: Verify immutable source ownership
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/hear/package.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Prepare only required core source dependencies
+        run: node ci/private-step.mjs prepare core bash scripts/hear.sh init
+      - name: Link source core
+        run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - name: Install frozen application dependencies
+        run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - id: desktop_checks
+        name: Execute all seven shared native and scripted GUI tasks
+        run: |
+          node ci/desktop-catalog.mjs --verify-input
+          node ci/private-step.mjs desktop-catalog core bash scripts/hear.sh desktop-check
+      - id: result
+        name: Independently collect source-bound desktop result
+        if: always()
+        env:
+          DESKTOP_EXECUTION_OUTCOME: ${{ steps.desktop_checks.outcome }}
+        run: node ci/desktop-catalog.mjs --collect
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.result.outcome == 'success'
+        with:
+          name: hear-desktop-catalog-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: desktop-catalog-receipt/verification.json
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-desktop-catalog-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/desktop-*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-desktop-task-progress-${{ github.run_id }}-${{ github.run_attempt }}
+          path: desktop-catalog-progress/progress.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Require fresh native and scripted GUI success
+        if: always()
+        env:
+          DESKTOP_EXECUTION_OUTCOME: ${{ steps.desktop_checks.outcome }}
+        run: node ci/desktop-catalog.mjs --require-pass
+  source-catalog:
+    if: inputs.target == 'source-unix'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: linux-x64, os: ubuntu-24.04 }
+          - { id: darwin-arm64, os: macos-26 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.source_ref }}
+      CORE_REF: ${{ inputs.source_ref }}
+      SOURCE_LAYOUT: monorepo
+      HEAR_APP_PATH: core/apps/hear
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      SOURCE_NATIVE_CHECK: ${{ inputs.native_check }}
+      SOURCE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      SOURCE_REUSE_NATIVE: ${{ inputs.reuse_native }}
+      SOURCE_REUSE_RUNTIME: ${{ inputs.reuse_linux_runtime }}
+      SOURCE_WINDOWS_SIGNAL: ${{ inputs.windows_owned_signal }}
+      SOURCE_APP_REF: ${{ inputs.app_ref }}
+      SOURCE_CORE_REF: ${{ inputs.core_ref }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate explicit source-only scope
+        run: node ci/source-catalog.mjs --start
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.SOURCE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify immutable source ownership
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/hear/package.json
+      - name: Link source core
+        run: node ci/private-step.mjs link app node scripts/link-core.mjs
+      - name: Install frozen source dependencies
+        run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - id: source_checks
+        name: Execute shared catalog source scope
+        run: node ci/private-step.mjs source-catalog core node scripts/verify-hear.mjs --profile full
+      - id: source_result
+        name: Collect independently validated bounded source receipt
+        if: always()
+        env:
+          SOURCE_EXECUTION_OUTCOME: ${{ steps.source_checks.outcome }}
+        run: node ci/source-catalog.mjs --collect
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.source_result.outcome == 'success'
+        with:
+          name: hear-source-receipt-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: source-catalog-receipt/verification.json
+          retention-days: 7
+          if-no-files-found: error
+      - if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-source-encrypted-${{ matrix.id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Require complete actual source execution
+        if: always()
+        env:
+          SOURCE_EXECUTION_OUTCOME: ${{ steps.source_checks.outcome }}
+        run: node ci/source-catalog.mjs --require-pass
   probe:
+    if: inputs.target != 'source-unix' && inputs.target != 'desktop-macos'
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +270,7 @@ jobs:
       PROBE_TARGET: ${{ inputs.target }}
       PROBE_NATIVE_CHECK: ${{ inputs.native_check }}
       PROBE_FUNCTIONAL_RUNTIME: ${{ inputs.functional_runtime }}
+      WASAPI_OWNED_REQUESTED: ${{ github.event_name != 'workflow_dispatch' || inputs.windows_owned_signal }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -119,7 +318,7 @@ jobs:
           timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
           packages=(xvfb x11-utils apparmor pulseaudio pulseaudio-utils)
           if [[ "$REUSE_LINUX_RUNTIME" != true ]]; then packages+=(libasound2-dev libclang-dev libssl-dev libpulse-dev pkg-config libxtst-dev libxrandr-dev libxinerama-dev libxt-dev nasm patchelf); fi
-          timeout 300 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y "${packages[@]}"
+          timeout 600 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends "${packages[@]}"
       - run: node ci/private-step.mjs link app node scripts/link-core.mjs
       - run: node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: types
@@ -222,6 +421,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node ci/private-step.mjs linux-runtime-reuse app node "$GITHUB_WORKSPACE/ci/linux-runtime-reuse.mjs"
+      - uses: actions/setup-go@v5
+        if: ${{ !inputs.reuse_linux_runtime }}
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Verify artifact privacy scanner version
+        if: ${{ !inputs.reuse_linux_runtime }}
+        run: test "$(gitleaks version)" = '8.30.1'
       - id: diagnostic_package
         name: Package diagnostic runtime (not a release)
         if: ${{ !inputs.reuse_linux_runtime }}
@@ -248,6 +460,16 @@ jobs:
         run: |
           node ci/private-step.mjs file-functional app node scripts/ci-file-runtime.mjs
           node ci/file-outcomes.mjs
+      - id: wasapi_owned
+        name: Windows owned approved-sample process signal (diagnostic)
+        if: always() && !cancelled() && runner.os == 'Windows' && inputs.functional_runtime && env.WASAPI_OWNED_REQUESTED == 'true' && env.SOURCE_LAYOUT == 'monorepo' && (steps.native_build.outcome == 'success' || steps.native_reuse.outcome == 'success') && hashFiles(format('{0}/scripts/windows-owned-audio-probe.mjs', env.HEAR_APP_PATH)) != ''
+        continue-on-error: true
+        run: node ci/private-step.mjs wasapi-owned app node scripts/windows-owned-audio-probe.mjs "$RUNNER_TEMP/hear-wasapi-owned"
+      - name: Retain independently checked Windows signal outcome
+        if: always() && runner.os == 'Windows' && inputs.functional_runtime
+        env:
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
+        run: node ci/wasapi-outcomes.mjs
       - id: system_audio
         name: Linux isolated OS output capture and live captions
         if: runner.os == 'Linux' && inputs.functional_runtime
@@ -278,6 +500,7 @@ jobs:
           SOURCE_DOWNLOAD_OUTCOME: ${{ steps.source_download.outcome }}
           LINUX_RUNTIME_REUSE_OUTCOME: ${{ steps.linux_runtime_reuse.outcome }}
           LINUX_INSTALL_OUTCOME: ${{ steps.linux_install.outcome }}
+          WASAPI_OWNED_OUTCOME: ${{ steps.wasapi_owned.outcome }}
           SYSTEM_AUDIO_OUTCOME: ${{ steps.system_audio.outcome }}
           RUNTIME_CLEANUP_OUTCOME: ${{ steps.runtime_cleanup.outcome }}
         run: node ci/probe-collect.mjs

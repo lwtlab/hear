@@ -102,6 +102,27 @@ jobs:
         run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Scripted GUI regression (not real audio or packaged acceptance)
         run: node ci/private-step.mjs scripted-gui app pnpm e2e
+      - uses: actions/setup-go@v5
+        if: inputs.mode == 'candidate'
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        if: inputs.mode == 'candidate'
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Verify artifact privacy scanner version
+        if: inputs.mode == 'candidate'
+        run: test "$(gitleaks version)" = '8.30.1'
+      - name: Prepare isolated ASAR regression reader
+        if: inputs.mode == 'candidate' && env.SOURCE_LAYOUT == 'monorepo'
+        run: npm install --prefix "$RUNNER_TEMP/privacy-tools" --ignore-scripts --no-audit --no-fund @electron/asar@3.4.1
+      - name: Verify source privacy ASAR controls
+        if: inputs.mode == 'candidate' && env.SOURCE_LAYOUT == 'monorepo'
+        env:
+          PRIVACY_TEST_TOOLS: ${{ runner.temp }}/privacy-tools
+        run: node ci/private-step.mjs privacy-asar core node --test --test-name-pattern=ASAR scripts/release/privacy.test.mjs
       - name: Build native dependencies from pinned sources
         if: inputs.mode == 'candidate'
         run: node ci/private-step.mjs native app bash scripts/ci-macos-native.sh
