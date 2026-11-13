@@ -28,7 +28,7 @@ on:
         required: true
         type: choice
         default: checks
-        options: [checks, candidate, installed, functional]
+        options: [checks, candidate, installed, functional, privacy-checks]
 permissions:
   contents: read
   actions: read
@@ -603,6 +603,110 @@ jobs:
         if: always()
         with:
           name: hear-windows-source-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+  privacy-controls:
+    name: Privacy source controls ${{ matrix.platform }}
+    if: inputs.target == 'win32-x64' && inputs.mode == 'privacy-checks'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+            scope: full
+          - os: windows-2025
+            platform: win32-x64
+            scope: ASAR
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      PRIVACY_TARGET: ${{ inputs.target }}
+      PRIVACY_PLATFORM: ${{ matrix.platform }}
+      PRIVACY_SCOPE: ${{ matrix.scope }}
+      PRIVACY_TEST_TOOLS: ${{ github.workspace }}/core/apps/reader
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - name: Canonical checkout for byte-reviewed generated fixtures
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate privacy controls and encryption before source checkout
+        run: |
+          node --input-type=module <<'JS'
+          import {privacyInputs} from './ci/privacy-controls.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=privacyInputs(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify exact source checkout
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/reader/package.json
+      - name: Install frozen ASAR test dependencies
+        run: node ci/private-step.mjs privacy-install core pnpm --dir apps/reader install --frozen-lockfile
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          test "$(gitleaks version)" = '8.30.1'
+      - name: Install archive inspection tools for full Linux controls
+        if: matrix.scope == 'full'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y 7zip squashfs-tools
+      - name: Execute full Linux privacy controls
+        if: matrix.scope == 'full'
+        run: node ci/private-step.mjs privacy-tests core node --test --test-reporter=spec scripts/release/privacy.test.mjs
+      - name: Execute Windows ASAR privacy controls
+        if: matrix.scope == 'ASAR'
+        run: node ci/private-step.mjs privacy-tests core node --test --test-reporter=spec --test-name-pattern=ASAR scripts/release/privacy.test.mjs
+      - name: Retain source-bound controls without candidate acceptance
+        run: node ci/privacy-controls.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hear-privacy-controls-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: privacy-controls/controls.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-privacy-controls-encrypted-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: diagnostics/*.enc.json
           retention-days: 7
           if-no-files-found: ignore

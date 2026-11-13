@@ -45,3 +45,15 @@ observed clean checkout followed by one rewritten Whisper JavaScript package JSO
 subsequent preparation splits native Whisper checkout from Qwen-only LF checkout.
 A new focused diagnostic must establish clean before/after state before a full new
 candidate build. All earlier failures and diagnostic NOT_QUALIFIED outcomes remain.
+
+
+Private product-source fix #305 changes the shared ASAR scanner. BC run43388609406
+at workflow2326abaa33a200d98d3ea6eafef9484b3e7ba3d5 passed source protection and
+reached production afterPack, then failed `Unsafe ASAR entry`; no installer exists.
+A subsequent product SHA must be built independently and cannot inherit BC results.
+Use `target=win32-x64, mode=privacy-checks` for cheap shared controls first: Linux
+runs the full privacy suite; Windows runs ASAR controls with real Windows paths and
+the pinned scanner. Separate runners check out checksum-reviewed fixture bytes as
+canonical LF. No native compilation, model/app/audio execution or candidate gate
+runs; public counts/digests are bounded and diagnostics remain encrypted. The
+receipt is always NOT_QUALIFIED. Full native/installer builds remain separate.
