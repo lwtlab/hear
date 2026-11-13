@@ -22,19 +22,19 @@ on:
         required: false
         type: choice
         default: darwin-arm64
-        options: [darwin-arm64, linux-x64]
+        options: [darwin-arm64, linux-x64, win32-x64]
       mode:
         description: Checks use scripted E2E; candidate also builds all native inputs and unsigned packages
         required: true
         type: choice
         default: checks
-        options: [checks, candidate, installed, functional]
+        options: [checks, candidate, installed, functional, privacy-checks]
 permissions:
   contents: read
   actions: read
 jobs:
   macos:
-    if: inputs.target != 'linux-x64'
+    if: inputs.target != 'linux-x64' && inputs.target != 'win32-x64'
     runs-on: macos-26
     timeout-minutes: 150
     defaults:
@@ -406,3 +406,310 @@ jobs:
           path: diagnostics/*.enc.json
           if-no-files-found: ignore
           retention-days: 7
+
+  windows:
+    if: inputs.target == 'win32-x64' && inputs.mode == 'candidate'
+    runs-on: windows-2025
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      HEAR_CORE_DIR: ${{ github.workspace }}/core
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate original Windows candidate and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {windowsInputs} from './ci/windows-candidate.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=windowsInputs(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify exact source checkout
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Link core and install frozen application dependencies
+        run: |
+          node ci/private-step.mjs link app node scripts/link-core.mjs
+          node ci/private-step.mjs install app pnpm install --frozen-lockfile
+      - name: Type safety
+        run: node ci/private-step.mjs typecheck app pnpm typecheck
+      - name: Build and load exact-source native core
+        run: node ci/private-step.mjs core app bash scripts/ci-core.sh
+      - name: Initialize required pinned ASR sources
+        run: |
+          node ci/private-step.mjs asr-source core git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+          node ci/private-step.mjs qwen-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- third_party/llama.cpp-upstream
+      - name: Build Whisper and SenseVoice CPU engines
+        run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
+      - name: Build shared Reader Qwen3 ASR CPU runtime
+        run: node ci/private-step.mjs qwen-build core node scripts/build-reader-llama.mjs --backend cpu --jobs 2
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          path-type: inherit
+          install: >-
+            make nasm diffutils
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build LGPL audio decoder
+        shell: msys2 {0}
+        run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          test "$(gitleaks version)" = '8.30.1'
+      - name: Stage all supported native inputs
+        run: node ci/private-step.mjs stage app/apps/desktop node scripts/stage-all.mjs
+      - name: Verify staged Qwen runtime loads
+        run: node ci/private-step.mjs qwen-smoke app/apps/desktop ./resources/bin/win32-x64/qwen3/reader-qwen3-asr.exe --help
+      - name: Build original application
+        run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
+      - name: Locate installer payload inspector
+        shell: pwsh
+        run: |
+          $zip=(Get-Command 7z.exe -ErrorAction Stop).Source
+          "HEAR_7ZIP=$zip" >> $env:GITHUB_ENV
+      - name: Package original Windows application with production gates
+        run: node ci/private-step.mjs windows-package app node "$GITHUB_WORKSPACE/ci/windows-candidate.mjs" package
+      - name: Verify actual NSIS payload and retained production fuses
+        run: node ci/windows-candidate.mjs collect
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hear-win32-x64-${{ github.run_id }}-${{ github.run_attempt }}
+          path: windows-candidate/
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hear-windows-candidate-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: windows-candidate/candidate.json
+          retention-days: 14
+          if-no-files-found: error
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-windows-candidate-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+
+  windows-source:
+    if: inputs.target == 'win32-x64' && inputs.mode == 'checks'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate source diagnostic and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {sourceProbeInputs} from './ci/windows-source-probe.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=sourceProbeInputs(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify exact source checkout
+        run: node ci/assert-sources.mjs
+      - id: init
+        name: Initialize only pinned Whisper and nested source
+        run: node ci/private-step.mjs source-init core git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+      - id: before
+        name: Record private vendor state before compilation
+        run: node ci/private-step.mjs source-before core node "$GITHUB_WORKSPACE/ci/windows-source-probe.mjs" before
+      - name: Reproduce only Whisper and SenseVoice compilation
+        run: node ci/private-step.mjs source-build app/apps/desktop bash scripts/build-myserver.sh
+      - id: after
+        if: always() && steps.before.outcome == 'success'
+        name: Record private vendor state after compilation
+        run: node ci/private-step.mjs source-after core node "$GITHUB_WORKSPACE/ci/windows-source-probe.mjs" after
+      - if: always() && steps.before.outcome == 'success' && steps.after.outcome == 'success'
+        name: Retain bounded NOT_QUALIFIED diagnostic receipt
+        run: node ci/windows-source-probe.mjs collect
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.before.outcome == 'success' && steps.after.outcome == 'success'
+        with:
+          name: hear-windows-source-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: windows-source-diagnostic/diagnostic.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-windows-source-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+  privacy-controls:
+    name: Privacy source controls ${{ matrix.platform }}
+    if: inputs.target == 'win32-x64' && inputs.mode == 'privacy-checks'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64
+            scope: full
+          - os: windows-2025
+            platform: win32-x64
+            scope: ASAR
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      PRIVACY_TARGET: ${{ inputs.target }}
+      PRIVACY_PLATFORM: ${{ matrix.platform }}
+      PRIVACY_SCOPE: ${{ matrix.scope }}
+      PRIVACY_TEST_TOOLS: ${{ github.workspace }}/core/apps/reader
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - name: Canonical checkout for byte-reviewed generated fixtures
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate privacy controls and encryption before source checkout
+        run: |
+          node --input-type=module <<'JS'
+          import {privacyInputs} from './ci/privacy-controls.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=privacyInputs(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify exact source checkout
+        run: node ci/assert-sources.mjs
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: core/apps/reader/package.json
+      - name: Install frozen ASAR test dependencies
+        run: node ci/private-step.mjs privacy-install core pnpm --dir apps/reader install --frozen-lockfile
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Install fixed artifact privacy scanner
+        run: |
+          go install -ldflags "-X=github.com/zricethezav/gitleaks/v8/version.Version=8.30.1" github.com/zricethezav/gitleaks/v8@v8.30.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          test "$(gitleaks version)" = '8.30.1'
+      - name: Install archive inspection tools for full Linux controls
+        if: matrix.scope == 'full'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y 7zip squashfs-tools
+      - name: Resolve genuine archive inspector command for Linux controls
+        if: matrix.scope == 'full'
+        run: bash ci/prepare-privacy-archive-tools.sh
+      - name: Execute full Linux privacy controls
+        if: matrix.scope == 'full'
+        run: node ci/private-step.mjs privacy-tests core node --test --test-reporter=spec scripts/release/privacy.test.mjs
+      - name: Execute Windows ASAR privacy controls
+        if: matrix.scope == 'ASAR'
+        run: node ci/private-step.mjs privacy-tests core node --test --test-reporter=spec --test-name-pattern=ASAR scripts/release/privacy.test.mjs
+      - name: Retain source-bound controls without candidate acceptance
+        run: node ci/privacy-controls.mjs
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hear-privacy-controls-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: privacy-controls/controls.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-privacy-controls-encrypted-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore

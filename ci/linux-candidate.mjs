@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sourcePaths } from './dispatch.mjs';
+import { productionDesktopConfig } from './desktop-candidate-config.mjs';
 
 const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 const jsonValue = value => JSON.parse(value);
@@ -27,14 +28,7 @@ export function linuxInputs(env, platform = process.platform, arch = process.arc
 }
 
 export function linuxConfig(base) {
-  assert.equal(base.appId, 'net.thucydides.lwt.hear');
-  assert.equal(base.productName, 'AIHear');
-  assert.equal(base.afterPack, 'scripts/after-pack.js');
-  for (const [key, expected] of Object.entries({ runAsNode:false, enableNodeOptionsEnvironmentVariable:false,
-    enableNodeCliInspectArguments:false, enableEmbeddedAsarIntegrityValidation:true, onlyLoadAppFromAsar:true,
-    grantFileProtocolExtraPrivileges:false })) assert.equal(base.electronFuses?.[key], expected, 'Production fuses required');
-  assert(Array.isArray(base.files) && Array.isArray(base.extraResources) && Array.isArray(base.asarUnpack));
-  const config = structuredClone(base);
+  const config = productionDesktopConfig(base);
   // The Mac source configuration deliberately drops other-platform hotkey prebuilds.
   // Adapt only the target selection; all source exclusion and privacy rules survive.
   config.files = base.files.filter(entry => typeof entry !== 'string' || !entry.includes('uiohook-napi/prebuilds/'));
@@ -60,6 +54,7 @@ export function collectLinux({ workspace, source, workflow, run, attempt }) {
   for (const value of [run,attempt]) assert(Number.isSafeInteger(value) && value>0);
   const core=join(workspace,'core'), desktop=join(core,'apps/hear/apps/desktop');
   assert.equal(git(workspace,'rev-parse','HEAD'),workflow);
+  assert.equal(git(workspace,'status','--porcelain','--untracked-files=no'),'','Tracked public policy changed');
   assert.equal(git(core,'rev-parse','HEAD'),source);
   assert.equal(git(core,'status','--porcelain=v1','--untracked-files=normal'),'','Source changed during package build');
   const originFile=join(core,'hear-core/native-origin.json'), nativeFile=join(core,'hear-core/hear-core.linux-x64-gnu.node');
@@ -128,6 +123,7 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
   assert.equal(process.platform,'linux');assert.equal(process.arch,'x64');
   const workspace=resolve(import.meta.dirname,'..'), paths=sourcePaths(), app=join(workspace,paths.app),core=join(workspace,paths.core), desktop=join(app,'apps/desktop'), workflow=git(workspace, 'rev-parse','HEAD');
   assert.equal(process.env.SOURCE_LAYOUT,'monorepo');assert.equal(workflow,process.env.GITHUB_SHA);
+  assert.equal(git(workspace,'status','--porcelain','--untracked-files=no'),'','Tracked public policy changed');
   assert.equal(git(core,'rev-parse','HEAD'),process.env.SOURCE_REF);
   if(mode==='collect')collectLinux({workspace,source:process.env.SOURCE_REF,workflow,run:Number(process.env.GITHUB_RUN_ID),attempt:Number(process.env.GITHUB_RUN_ATTEMPT)});
   else {
