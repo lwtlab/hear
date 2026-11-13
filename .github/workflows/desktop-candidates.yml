@@ -28,7 +28,7 @@ on:
         required: true
         type: choice
         default: checks
-        options: [checks, candidate, installed]
+        options: [checks, candidate, installed, functional]
 permissions:
   contents: read
   actions: read
@@ -166,7 +166,7 @@ jobs:
           retention-days: 7
 
   linux:
-    if: inputs.target == 'linux-x64' && inputs.mode != 'installed'
+    if: inputs.target == 'linux-x64' && inputs.mode != 'installed' && inputs.mode != 'functional'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     defaults:
@@ -292,9 +292,9 @@ jobs:
           retention-days: 7
 
   linux-installed:
-    if: inputs.target == 'linux-x64' && inputs.mode == 'installed'
+    if: inputs.target == 'linux-x64' && (inputs.mode == 'installed' || inputs.mode == 'functional')
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         shell: bash
@@ -357,6 +357,30 @@ jobs:
         env:
           EXPECTED_FETCH_SHA: ${{ steps.fetch.outputs.fetch_sha }}
         run: node ci/private-step.mjs installed-original app node "$GITHUB_WORKSPACE/ci/linux-install.mjs" observe
+      - name: Prepare private virtual audio and owned CDP inspection tools
+        if: inputs.mode == 'functional'
+        run: timeout 600 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends pulseaudio pulseaudio-utils dbus-x11 lsof
+      - id: functional
+        name: Exact installed model recovery and private OS-output controls
+        if: inputs.mode == 'functional'
+        env:
+          EXPECTED_FETCH_SHA: ${{ steps.fetch.outputs.fetch_sha }}
+        run: node ci/private-step.mjs original-functional app node "$GITHUB_WORKSPACE/ci/linux-model-audio.mjs" run
+      - name: Independently collect complete model and audio controls
+        if: inputs.mode == 'functional'
+        env:
+          EXPECTED_FETCH_SHA: ${{ steps.fetch.outputs.fetch_sha }}
+        run: node ci/private-step.mjs functional-collect app node "$GITHUB_WORKSPACE/ci/linux-model-audio.mjs" collect
+      - uses: actions/upload-artifact@v4
+        if: success() && inputs.mode == 'functional'
+        with:
+          name: hear-linux-functional-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: functional-observation.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Encrypt typed functional diagnostics including failures
+        if: always() && inputs.mode == 'functional'
+        run: node ci/linux-model-audio.mjs seal
       - uses: actions/upload-artifact@v4
         if: success()
         with:

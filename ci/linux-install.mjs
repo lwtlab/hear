@@ -13,7 +13,7 @@ const digest=value=>createHash('sha256').update(value).digest('hex');
 const publicFiles=[import.meta.filename,join(import.meta.dirname,'linux-candidate-zip.py'),join(import.meta.dirname,'linux-deb-payload.py')],publicTools=()=>Object.fromEntries(publicFiles.map(file=>[file,sha(file)])),publicBefore=publicTools();
 const regular=file=>assert(lstatSync(file).isFile()&&!lstatSync(file).isSymbolicLink()&&realpathSync(file)===resolve(file));
 export function replayInput(env){
-  assert.equal(env.BUILD_MODE,'installed');assert.equal(env.SOURCE_REF,approvedCandidate.source);assert(!env.APP_REF&&!env.CORE_REF);
+  assert(['installed','functional'].includes(env.BUILD_MODE));assert.equal(env.SOURCE_REF,approvedCandidate.source);assert(!env.APP_REF&&!env.CORE_REF);
   return {layout:'monorepo',appPath:'core/apps/hear',sourceRef:approvedCandidate.source,appRef:approvedCandidate.source,coreRef:approvedCandidate.source};
 }
 export function validateCandidate(candidate,run){
