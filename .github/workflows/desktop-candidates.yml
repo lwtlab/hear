@@ -28,9 +28,10 @@ on:
         required: true
         type: choice
         default: checks
-        options: [checks, candidate]
+        options: [checks, candidate, installed]
 permissions:
   contents: read
+  actions: read
 jobs:
   macos:
     if: inputs.target != 'linux-x64'
@@ -165,7 +166,7 @@ jobs:
           retention-days: 7
 
   linux:
-    if: inputs.target == 'linux-x64'
+    if: inputs.target == 'linux-x64' && inputs.mode != 'installed'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     defaults:
@@ -286,6 +287,98 @@ jobs:
         if: always()
         with:
           name: hear-linux-candidate-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+  linux-installed:
+    if: inputs.target == 'linux-x64' && inputs.mode == 'installed'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate reviewed candidate source and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {replayInput} from './ci/linux-install.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=replayInput(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - id: fetch
+        name: Verify source build and authenticated artifact bytes before installation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/linux-install.mjs fetch
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify source checkout identities
+        run: node ci/assert-sources.mjs
+      - name: Install bounded native window inspection tools
+        run: |
+          timeout 180 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
+          timeout 600 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends xvfb xauth x11-utils apparmor
+      - id: install
+        name: Install only the previously verified original deb
+        env:
+          EXPECTED_FETCH_SHA: ${{ steps.fetch.outputs.fetch_sha }}
+        run: |
+          sudo aa-status --enabled
+          test ! -e /opt/AIHear && test ! -L /opt/AIHear
+          test ! -e /etc/apparmor.d/aihear && test ! -L /etc/apparmor.d/aihear
+          if dpkg-query -W aihear >/dev/null 2>&1; then exit 1; fi
+          node ci/linux-install.mjs verify
+          touch "$RUNNER_TEMP/hear-original-install/install-owned"
+          timeout 600 sudo apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends "$RUNNER_TEMP/hear-original-install/input/AIHear-2.0.0-linux-amd64.deb"
+      - id: observe
+        name: Ordinary installed window, native Quit and sandbox with owned profile
+        env:
+          EXPECTED_FETCH_SHA: ${{ steps.fetch.outputs.fetch_sha }}
+        run: node ci/private-step.mjs installed-original app node "$GITHUB_WORKSPACE/ci/linux-install.mjs" observe
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: hear-linux-installed-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: installed-observation.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove only this job's owned installation
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/hear-original-install/install-owned"; then
+            sudo dpkg --remove aihear
+            test ! -e /opt/AIHear
+            test ! -e /etc/apparmor.d/aihear
+          fi
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-linux-installed-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
           path: diagnostics/*.enc.json
           if-no-files-found: ignore
           retention-days: 7
