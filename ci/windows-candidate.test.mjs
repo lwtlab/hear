@@ -78,3 +78,12 @@ for(const [name,mutate]of [
  ['native origin digest mismatch',f=>{f.put('core/hear-core/hear-core.win32-x64-msvc.node','wrong');}],
  ['missing actual Windows hotkey filename',f=>{delete f.payload['resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/win32-x64/uiohook-napi.node'];}],
 ])test('complete Windows collector rejects '+name,async t=>{const f=candidateFixture(t,mutate);await assert.rejects(()=>collectWindows(f));});
+
+test('Windows pinned-source initialization preserves LF bytes despite autocrlf=true',t=>{
+ const workflow=readFileSync(new URL('../.github/workflows/desktop-candidates.yml',import.meta.url),'utf8').split('  windows:')[1];assert(workflow.includes('asr-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/'));
+ const root=realpathSync(mkdtempSync(join(tmpdir(),'hear-win-checkout-control-')));t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim(),origin=join(root,'origin');mkdirSync(origin);git(origin,'init');writeFileSync(join(origin,'clip.cpp'),'first line\nsecond line\n');git(origin,'add','.');git(origin,'-c','user.name=Control','-c','user.email=control@example.invalid','commit','-m','source');const head=git(origin,'rev-parse','HEAD');
+ const outcomes=[];for(const mode of ['default','canonical']){const parent=join(root,mode);mkdirSync(parent);git(parent,'init');git(parent,'config','core.autocrlf','true');writeFileSync(join(parent,'.gitmodules'),'[submodule "pinned"]\n path = pinned\n url = '+origin+'\n');git(parent,'add','.gitmodules');git(parent,'update-index','--add','--cacheinfo','160000,'+head+',pinned');
+ git(parent,'-c','protocol.file.allow=always',...(mode==='canonical'?['-c','core.autocrlf=false','-c','core.eol=lf']:['-c','core.autocrlf=true']),'submodule','update','--init','--recursive','--','pinned');outcomes.push(readFileSync(join(parent,'pinned/clip.cpp')));}
+ assert(outcomes[0].includes(Buffer.from('\r\n')));assert.equal(outcomes[1].toString(),'first line\nsecond line\n');
+});

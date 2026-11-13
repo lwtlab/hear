@@ -17,3 +17,12 @@ establish installer interaction, installed launch, upgrade/uninstall, model reco
 system audio or physical-device acceptance. Those need new independently recorded
 observations using these exact bytes. Windows10 System Audio and Windows11 process
 capture remain separate deferred tasks. No application GitHub Release is created.
+
+
+The required upstream submodules are checked out with explicit `core.autocrlf=false`
+and `core.eol=lf`. The pinned build-only mtmd overlay matches exact LF anchors;
+Windows' default CRLF checkout failed that anchor in run43380351891/attempt1
+(workflow4e5407376191834ad11716dbe1a0a41800d79d9b). That failed build produced no
+installer. A same-revision LF/CRLF control reproduces the overlay difference, and
+real Git submodule controls verify that the canonical checkout overrides an
+inherited autocrlf=true. This changes preparation only; product source stays frozen.

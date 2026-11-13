@@ -463,7 +463,7 @@ jobs:
       - name: Build and load exact-source native core
         run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Initialize required pinned ASR sources
-        run: node ci/private-step.mjs asr-source core git -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp third_party/llama.cpp-upstream
+        run: node ci/private-step.mjs asr-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp third_party/llama.cpp-upstream
       - name: Build Whisper and SenseVoice CPU engines
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
       - name: Build shared Reader Qwen3 ASR CPU runtime
