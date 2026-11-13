@@ -6,6 +6,7 @@ import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { linuxConfig, linuxInputs, collectLinux } from './linux-candidate.mjs';
+import {makeDeb} from './linux-test-deb.mjs';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const base={appId:'net.thucydides.lwt.hear',productName:'AIHear',afterPack:'scripts/after-pack.js',
   files:['out/**','!**/*.map','!**/node_modules/@lwtlab/*/src/**','!**/node_modules/uiohook-napi/prebuilds/*/**','**/node_modules/uiohook-napi/prebuilds/darwin-arm64/**'],
@@ -26,10 +27,6 @@ test('Linux candidates require explicit monorepo source, candidate mode and nati
   for(const target of [['darwin','arm64'],['linux','arm64'],['win32','x64']])assert.throws(()=>linuxInputs(env,...target));
 });
 
-function makeDeb(file,entries,fields='Package: aihear\nVersion: 2.0.0\nArchitecture: amd64\n') {
-  const program=`import base64,io,json,tarfile,sys\nr=json.load(sys.stdin)\ndef tar(items):\n b=io.BytesIO()\n with tarfile.open(fileobj=b,mode='w:gz') as t:\n  for e in items:\n   i=tarfile.TarInfo(e['name']);i.mode=e.get('mode',0o755)\n   if e.get('directory'):i.type=tarfile.DIRTYPE;t.addfile(i)\n   elif e.get('link') is not None:i.type=tarfile.LNKTYPE if e.get('hardlink') else tarfile.SYMTYPE;i.linkname=e['link'];t.addfile(i)\n   else:\n    data=base64.b64decode(e['data']);i.size=len(data);t.addfile(i,io.BytesIO(data))\n return b.getvalue()\nwith open(sys.argv[1],'wb') as f:\n f.write(b'!<arch>\\n')\n for name,data in [('debian-binary',b'2.0\\n'),('control.tar.gz',tar([{'name':'control','data':base64.b64encode(r['fields'].encode()).decode()}])),('data.tar.gz',tar(r['entries']))]:\n  f.write((name+'/').ljust(16).encode()+b'0'.ljust(12)+b'0'.ljust(6)+b'0'.ljust(6)+b'100644'.ljust(8)+str(len(data)).ljust(10).encode()+b'\x60\\n'+data)\n  if len(data)%2:f.write(b'\\n')\n`;
-  execFileSync('python3',['-c',program,file],{input:JSON.stringify({entries,fields})});
-}
 function fixture(t,mutatePayload=()=>{}) {
   const root=realpathSync(mkdtempSync(join(tmpdir(),'hear-linux-candidate-')));t.after(()=>rmSync(root,{recursive:true,force:true}));
   const git=(cwd,...args)=>execFileSync('git',args,{cwd,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
