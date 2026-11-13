@@ -42,7 +42,7 @@ export function linuxConfig(base) {
   config.directories = { ...base.directories, output: 'release/linux-original' };
   config.extraMetadata = { ...base.extraMetadata, name: 'aihear', homepage: 'https://github.com/lwtlab/hear' };
   config.linux = { target: ['deb'], executableName: 'aihear', category:'Utility',
-    executableArgs: [], maintainer:'lwtlab <help@thucydides.net>', artifactName:'AIHear-${version}-linux-${arch}.${ext}' };
+    executableArgs: [], maintainer:'lwtlab <help@thucydides.net>', artifactName:'AIHear-${version}-linux-amd64.${ext}' };
   // Retain the standard builder runtime dependencies and path-scoped AppArmor hooks.
   config.deb = { fpm: ['--depends','fonts-noto-cjk','--depends','pulseaudio-utils','--depends','libpulse0'] };
   config.publish = null;
@@ -96,7 +96,7 @@ export function collectLinux({ workspace, source, workflow, run, attempt }) {
   inputs.qwen={upstreamRevision:record.revision,backend:'cpu',buildRecordSha256:sha(recordFile),adapterSetSha256:createHash('sha256').update(JSON.stringify(record.adapterFiles)).digest('hex'),staged:qwen.staged};
   const release=join(desktop,'release/linux-original');
   const version=json(join(desktop,'package.json')).version;assert(/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version));
-  const name=`AIHear-${version}-linux-x64.deb`, file=join(release,name);regular(file);
+  const name=`AIHear-${version}-linux-amd64.deb`, file=join(release,name);regular(file);
   const assets=[{name,bytes:lstatSync(file).size,sha256:sha(file)}];assert(assets[0].bytes>0);
   const policyFile=join(release,'packaging-input.json');regular(policyFile);
   const packaging=json(policyFile);assert.equal(packaging.source,source);assert.equal(packaging.workflow,workflow);

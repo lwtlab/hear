@@ -17,7 +17,7 @@ test('Linux packaging retains original identity, privacy hook, production fuses 
   assert.deepEqual(config.electronFuses,base.electronFuses);assert.deepEqual(config.extraResources,base.extraResources);assert.deepEqual(config.asarUnpack,base.asarUnpack);
   assert.deepEqual(config.files.filter(s=>!s.includes('uiohook-napi/prebuilds/')),base.files.filter(s=>!s.includes('uiohook-napi/prebuilds/')));
   assert(config.files.includes('**/node_modules/uiohook-napi/prebuilds/linux-x64/**'));assert(!JSON.stringify(config.files).includes('darwin-arm64'));
-  assert.deepEqual(config.linux.executableArgs,[]);assert.equal(config.publish,null);assert.equal(config.directories.output,'release/linux-original');
+  assert.equal(config.linux.artifactName,'AIHear-${version}-linux-amd64.${ext}');assert.deepEqual(config.linux.executableArgs,[]);assert.equal(config.publish,null);assert.equal(config.directories.output,'release/linux-original');
   for(const bad of [{...base,afterPack:undefined},{...base,electronFuses:{...base.electronFuses,runAsNode:true}},{...base,appId:'probe'}])assert.throws(()=>linuxConfig(bad));
 });
 test('Linux candidates require explicit monorepo source, candidate mode and native Linux x64',()=>{
@@ -65,7 +65,7 @@ function fixture(t,mutatePayload=()=>{}) {
   put(release+'/packaging-input.json',JSON.stringify({source,workflow,platform:'linux-x64',productionFusesPreserved:true,productionAfterPackPreserved:true,sourceConfigSha256:hash('synthetic source configuration'),adapterSha256:hash(readFileSync(new URL('./linux-candidate.mjs',import.meta.url)))}));
   payload['opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/linux-x64/node.napi.glibc.node']=Buffer.from('synthetic hook');
   const entries=Object.entries(payload).map(([name,data])=>({name,data:data.toString('base64')}));mutatePayload(entries);
-  const asset=join(root,release,'AIHear-2.0.0-linux-x64.deb');makeDeb(asset,entries);
+  const asset=join(root,release,'AIHear-2.0.0-linux-amd64.deb');makeDeb(asset,entries);
   return {root,source,workflow,asset,entries};
 }
 test('collector binds actual deb bytes to clean native/engine inputs and retains every installed gate NOT_RUN',t=>{

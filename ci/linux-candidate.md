@@ -30,3 +30,6 @@ model recovery, physical audio, signing or repository trust. Unsigned deb integr
 is source/workflow/run/checksum-bound, not a signed apt repository or formal release.
 Mac-only engines are not built on Linux; local-LLM feature acceptance is not claimed.
 No application Release, website deployment or default product-selection policy changes.
+
+Deb artifacts use the Debian ABI name `amd64`; native targets remain `linux-x64`.
+The filename is explicit, so electron-builder cannot substitute a different arch alias.
