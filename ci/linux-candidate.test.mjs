@@ -27,7 +27,7 @@ test('Linux candidates require explicit monorepo source, candidate mode and nati
 });
 
 function makeDeb(file,entries,fields='Package: aihear\nVersion: 2.0.0\nArchitecture: amd64\n') {
-  const program=`import base64,io,json,tarfile,sys\nr=json.load(sys.stdin)\ndef tar(items):\n b=io.BytesIO()\n with tarfile.open(fileobj=b,mode='w:gz') as t:\n  for e in items:\n   i=tarfile.TarInfo(e['name']);i.mode=e.get('mode',0o755)\n   if e.get('link') is not None:i.type=tarfile.LNKTYPE if e.get('hardlink') else tarfile.SYMTYPE;i.linkname=e['link'];t.addfile(i)\n   else:\n    data=base64.b64decode(e['data']);i.size=len(data);t.addfile(i,io.BytesIO(data))\n return b.getvalue()\nwith open(sys.argv[1],'wb') as f:\n f.write(b'!<arch>\\n')\n for name,data in [('debian-binary',b'2.0\\n'),('control.tar.gz',tar([{'name':'control','data':base64.b64encode(r['fields'].encode()).decode()}])),('data.tar.gz',tar(r['entries']))]:\n  f.write((name+'/').ljust(16).encode()+b'0'.ljust(12)+b'0'.ljust(6)+b'0'.ljust(6)+b'100644'.ljust(8)+str(len(data)).ljust(10).encode()+b'\x60\\n'+data)\n  if len(data)%2:f.write(b'\\n')\n`;
+  const program=`import base64,io,json,tarfile,sys\nr=json.load(sys.stdin)\ndef tar(items):\n b=io.BytesIO()\n with tarfile.open(fileobj=b,mode='w:gz') as t:\n  for e in items:\n   i=tarfile.TarInfo(e['name']);i.mode=e.get('mode',0o755)\n   if e.get('directory'):i.type=tarfile.DIRTYPE;t.addfile(i)\n   elif e.get('link') is not None:i.type=tarfile.LNKTYPE if e.get('hardlink') else tarfile.SYMTYPE;i.linkname=e['link'];t.addfile(i)\n   else:\n    data=base64.b64decode(e['data']);i.size=len(data);t.addfile(i,io.BytesIO(data))\n return b.getvalue()\nwith open(sys.argv[1],'wb') as f:\n f.write(b'!<arch>\\n')\n for name,data in [('debian-binary',b'2.0\\n'),('control.tar.gz',tar([{'name':'control','data':base64.b64encode(r['fields'].encode()).decode()}])),('data.tar.gz',tar(r['entries']))]:\n  f.write((name+'/').ljust(16).encode()+b'0'.ljust(12)+b'0'.ljust(6)+b'0'.ljust(6)+b'100644'.ljust(8)+str(len(data)).ljust(10).encode()+b'\x60\\n'+data)\n  if len(data)%2:f.write(b'\\n')\n`;
   execFileSync('python3',['-c',program,file],{input:JSON.stringify({entries,fields})});
 }
 function fixture(t,mutatePayload=()=>{}) {
@@ -77,6 +77,7 @@ test('collector binds actual deb bytes to clean native/engine inputs and retains
 for(const [name,mutate]of [
   ['swapped packaged native',entries=>{entries.find(e=>e.name.endsWith('hear-core.linux-x64-gnu.node')).data=Buffer.from('wrong native').toString('base64');}],
   ['missing Linux hotkey',entries=>{entries.splice(entries.findIndex(e=>e.name.includes('uiohook-napi')),1);}],
+  ['foreign hotkey directory',entries=>entries.push({name:'opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/darwin-arm64/',directory:true})],
   ['foreign hotkey prebuild',entries=>{entries.find(e=>e.name.includes('uiohook-napi')).name=entries.find(e=>e.name.includes('uiohook-napi')).name.replace('linux-x64','darwin-arm64');}],
   ['symlink native',entries=>{const e=entries.find(e=>e.name.endsWith('hear-core.linux-x64-gnu.node'));delete e.data;e.link='/unrelated/native.node';}],
   ['lost executable permission',entries=>{entries.find(e=>e.name.endsWith('qwen3/reader-qwen3-asr')).mode=0o644;}],
@@ -108,4 +109,11 @@ test('Linux job cannot become a diagnostic installer or bypass production packag
   assert(job.includes("if: inputs.target == 'linux-x64'"));assert(job.indexOf('linuxInputs(process.env)')<job.indexOf('ssh-key:'));
   for(const line of ['scripts/ci-core.sh','scripts/build-reader-llama.mjs --backend cpu','scripts/stage-all.mjs','ci/linux-candidate.mjs" package','node ci/linux-candidate.mjs collect'])assert(job.includes(line));
   assert(!job.includes('platform-probe-package')&&!job.includes('--no-sandbox')&&!job.includes('release create'));
+});
+
+test('standard hotkey directory members remain valid while binary payload stays regular',t=>{
+  const f=fixture(t,entries=>{
+    entries.unshift({name:'opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/linux-x64/',directory:true});
+  });
+  assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}).payload.package,'aihear');
 });

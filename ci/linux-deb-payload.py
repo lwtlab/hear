@@ -79,8 +79,13 @@ def inspect_deb(file, expected):
                                 raise ValueError("Invalid control file")
                             control = archive.extractfile(member).read().decode("utf8")
                         elif name.startswith("data.tar") and (path in expected or path.startswith("opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/")):
+                            if path not in expected and member.isdir():
+                                root = "opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/linux-x64"
+                                if path != root and not path.startswith(root + "/"):
+                                    raise ValueError("Foreign hotkey prebuild directory was packaged")
+                                continue
                             if not member.isfile() or member.issym() or member.islnk():
-                                raise ValueError("Required packaged bytes must be regular files")
+                                raise ValueError("Required packaged bytes must be regular files: " + path)
                             content = archive.extractfile(member)
                             digest = hashlib.sha256()
                             total = 0
