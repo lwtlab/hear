@@ -114,3 +114,5 @@ test('standard hotkey directory members remain valid while binary payload stays 
   });
   assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}).payload.package,'aihear');
 });
+
+test('tracked public policy drift cannot qualify an unchanged deb',t=>{const f=fixture(t);writeFileSync(join(f.root,'marker'),'modified public policy');assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));});
