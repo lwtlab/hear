@@ -57,3 +57,12 @@ the pinned scanner. Separate runners check out checksum-reviewed fixture bytes a
 canonical LF. No native compilation, model/app/audio execution or candidate gate
 runs; public counts/digests are bounded and diagnostics remain encrypted. The
 receipt is always NOT_QUALIFIED. Full native/installer builds remain separate.
+
+
+Focusedrun43397239000/1 at7c6fc133be5925c3a8d7f63c0fd8add6216d7f3a passed the
+nine actual Windows ASAR controls. Linux reported28PASS/1FAIL/1conditional skip:
+the required7zz command was absent after package installation.
+Preparation now resolves a genuine existing7zz or creates an owned runner-local
+7zz alias to the installed7z, verifies its real execution and propagates failures.
+No assertion, format control, source SHA or scanner policy is relaxed. The failed
+Linux run and the separately successful Windows result remain independently bound.

@@ -685,6 +685,9 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y 7zip squashfs-tools
+      - name: Resolve genuine archive inspector command for Linux controls
+        if: matrix.scope == 'full'
+        run: bash ci/prepare-privacy-archive-tools.sh
       - name: Execute full Linux privacy controls
         if: matrix.scope == 'full'
         run: node ci/private-step.mjs privacy-tests core node --test --test-reporter=spec scripts/release/privacy.test.mjs
