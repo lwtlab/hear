@@ -4,12 +4,13 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import {
   modelSpecs,
+  readyAudioSource,
   pcmMetrics,
   summarize,
   validateRawBinding,
 } from "./linux-model-audio.mjs";
 import { approvedCandidate, replayInput } from "./linux-install.mjs";
-import { cdp, validateListener } from "./linux-cdp.mjs";
+import { cdp, validateListener, stableProcessSnapshot } from "./linux-cdp.mjs";
 const hash = (value) => createHash("sha256").update(value).digest("hex"),
   binding = { workflow: "a".repeat(40), run: 12, attempt: 1 };
 const envelope = (mode) => ({
@@ -256,4 +257,84 @@ test("functional workflow consumes the same candidate and seals failures before 
   );
   assert(job.includes("if: always() && inputs.mode"));
   assert(!job.includes("--no-sandbox"));
+});
+
+test("complete process snapshots retry vanished Chromium helpers, recheck owner and reject other failures", async () => {
+  let reads = 0,
+    owners = 0;
+  const value = await stableProcessSnapshot(
+    () => owners++,
+    () => {
+      if (reads++ === 0)
+        throw Object.assign(new Error("Captured renderer /proc exit race"), {
+          code: "ENOENT",
+        });
+      return { browser: 123, renderers: [124] };
+    },
+  );
+  assert.deepEqual(value, { browser: 123, renderers: [124] });
+  assert.equal(owners, 2);
+  await assert.rejects(
+    stableProcessSnapshot(
+      () => {},
+      () => {
+        throw Object.assign(new Error("permission denied"), { code: "EACCES" });
+      },
+    ),
+    /permission denied/,
+  );
+  await assert.rejects(
+    stableProcessSnapshot(
+      () => {
+        throw new Error("owner changed");
+      },
+      () => ({}),
+    ),
+    /owner changed/,
+  );
+});
+
+test("audio restart waits for verified model and rejects unsafe settings before capture", async () => {
+  let release,
+    checked = 0;
+  const ready = new Promise((resolve) => {
+    release = resolve;
+  });
+  const cfg = {
+    mic: { enabled: false },
+    system: {
+      enabled: true,
+      source: { kind: "output", outputId: "hear_qa_owned" },
+    },
+  };
+  const pending = readyAudioSource(
+    () => ready,
+    async () => {
+      checked++;
+      return cfg;
+    },
+    "hear_qa_owned",
+  );
+  assert.equal(checked, 0);
+  release();
+  assert.deepEqual(await pending, cfg);
+  assert.equal(checked, 1);
+  for (const changed of [
+    { ...cfg, mic: { enabled: true } },
+    { ...cfg, system: { enabled: true, source: { kind: "system" } } },
+    {
+      ...cfg,
+      system: {
+        enabled: true,
+        source: { kind: "output", outputId: "unowned" },
+      },
+    },
+  ])
+    await assert.rejects(
+      readyAudioSource(
+        async () => {},
+        async () => changed,
+        "hear_qa_owned",
+      ),
+    );
 });

@@ -187,3 +187,19 @@ export function sandbox(processes) {
     return { pid: Number(p.id), Seccomp, NoNewPrivs };
   });
 }
+// A process may exit between the CDP list and /proc reads. Never accept a partial snapshot.
+export async function stableProcessSnapshot(
+  assertOwner,
+  readSnapshot,
+  timeout = 10000,
+) {
+  return until(async () => {
+    assertOwner();
+    try {
+      return await readSnapshot();
+    } catch (error) {
+      if (error.code === "ENOENT" || error.code === "ESRCH") return false;
+      throw error;
+    }
+  }, timeout);
+}

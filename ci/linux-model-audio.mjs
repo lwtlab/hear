@@ -29,6 +29,7 @@ import {
   renderer,
   requireOwner,
   sandbox,
+  stableProcessSnapshot,
   until,
 } from "./linux-cdp.mjs";
 import { encryptLog } from "./log-crypto.mjs";
@@ -214,6 +215,24 @@ export function validateAudio(raw) {
   assert.equal(raw.cleanup.noOwnedLiveProcesses, true);
   assert.equal(raw.cleanup.privateServerStopped, true);
 }
+export async function readyAudioSource(readyModel, getSettings, outputId) {
+  await readyModel();
+  const settings = await getSettings();
+  assert.equal(settings.mic.enabled, false);
+  assert.equal(settings.system.enabled, true);
+  assert.deepEqual(settings.system.source, { kind: "output", outputId });
+  return settings;
+}
+async function readyHudAudio(hud) {
+  return until(() =>
+    renderer(
+      hud,
+      () =>
+        !!document.querySelector('[title="Microphone (off)"]') &&
+        !!document.querySelector('[title="System audio (on)"]'),
+    ),
+  );
+}
 function cleanEnv(ambient) {
   const env = { ...ambient };
   for (const key of Object.keys(env))
@@ -301,14 +320,23 @@ class CandidateSession {
     ).json();
     this.browser = await cdp(endpoint.webSocketDebuggerUrl);
     this.connections.push(this.browser);
-    const info = (await this.browser.call("SystemInfo.getProcessInfo"))
-      .processInfo;
-    assert.equal(
-      Number(info.find((p) => p.type === "browser").id),
-      this.child.pid,
+    const snapshot = await stableProcessSnapshot(
+      () => requireOwner(this.owner, executable, this.profile),
+      async () => {
+        const info = (await this.browser.call("SystemInfo.getProcessInfo"))
+          .processInfo;
+        assert.equal(
+          Number(info.find((p) => p.type === "browser").id),
+          this.child.pid,
+        );
+        return {
+          processes: info.map((p) => processIdentity(Number(p.id))),
+          sandbox: sandbox(info),
+        };
+      },
     );
-    this.processes = info.map((p) => processIdentity(Number(p.id)));
-    this.sandbox = sandbox(info);
+    this.processes = snapshot.processes;
+    this.sandbox = snapshot.sandbox;
     this.page = await this.target("manage");
     await until(() => this.eval(() => !!window.hearApi?.listModels));
     return this;
@@ -910,6 +938,12 @@ async function audioControl(root, models, seed, env) {
         () => !!document.querySelector('[data-testid="hud-start"]'),
       ),
     );
+    await readyAudioSource(
+      () => app.ready(tiny.id),
+      () => app.eval(() => window.hearApi.getAudioSettings()),
+      selected,
+    );
+    await readyHudAudio(hud);
     const before = await app.eval(async () =>
       (await window.hearApi.listRecordings()).map((r) => r.id),
     );
@@ -1013,6 +1047,15 @@ async function audioControl(root, models, seed, env) {
         () => !!document.querySelector('[data-testid="hud-start"]'),
       ),
     );
+    raw.restartReadiness = {
+      model: await app.ready(tiny.id),
+      audio: await readyAudioSource(
+        () => app.ready(tiny.id),
+        () => app.eval(() => window.hearApi.getAudioSettings()),
+        selected,
+      ),
+    };
+    await readyHudAudio(hud2);
     await renderer(hud2, () =>
       document.querySelector('[data-testid="hud-start"]').click(),
     );
@@ -1057,6 +1100,24 @@ async function audioControl(root, models, seed, env) {
     raw.status = "PASS";
   } catch (e) {
     raw.error = String(e.stack ?? e);
+    try {
+      raw.failureObservation = {
+        model: await app?.entry(tiny.id),
+        settings: await app?.eval(() => window.hearApi.getAudioSettings()),
+        errors: await app?.eval(
+          () => window.__disappearance ?? window.__ownedAudio ?? null,
+        ),
+        privateCaptureStreams: pactl("list", "short", "source-outputs"),
+        privateDefaultSink: pactl("get-default-sink"),
+        applicationLogTail: existsSync(join(root, "application.private.log"))
+          ? readFileSync(join(root, "application.private.log"), "utf8").slice(
+              -6000,
+            )
+          : "",
+      };
+    } catch (observationError) {
+      raw.failureObservationError = String(observationError);
+    }
   } finally {
     try {
       await stopPlayer();
