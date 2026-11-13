@@ -463,7 +463,9 @@ jobs:
       - name: Build and load exact-source native core
         run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Initialize required pinned ASR sources
-        run: node ci/private-step.mjs asr-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp third_party/llama.cpp-upstream
+        run: |
+          node ci/private-step.mjs asr-source core git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+          node ci/private-step.mjs qwen-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- third_party/llama.cpp-upstream
       - name: Build Whisper and SenseVoice CPU engines
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
       - name: Build shared Reader Qwen3 ASR CPU runtime
@@ -574,7 +576,7 @@ jobs:
         run: node ci/assert-sources.mjs
       - id: init
         name: Initialize only pinned Whisper and nested source
-        run: node ci/private-step.mjs source-init core git -c core.autocrlf=false -c core.eol=lf submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+        run: node ci/private-step.mjs source-init core git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
       - id: before
         name: Record private vendor state before compilation
         run: node ci/private-step.mjs source-before core node "$GITHUB_WORKSPACE/ci/windows-source-probe.mjs" before

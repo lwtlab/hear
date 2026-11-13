@@ -19,8 +19,9 @@ observations using these exact bytes. Windows10 System Audio and Windows11 proce
 capture remain separate deferred tasks. No application GitHub Release is created.
 
 
-The required upstream submodules are checked out with explicit `core.autocrlf=false`
-and `core.eol=lf`. The pinned build-only mtmd overlay matches exact LF anchors;
+Only the shared Qwen upstream submodule is checked out with explicit
+`core.autocrlf=false` and `core.eol=lf`. Whisper retains native Windows checkout
+bytes to match its CMake-generated tracked JavaScript package metadata. The pinned build-only mtmd overlay matches exact LF anchors;
 Windows' default CRLF checkout failed that anchor in run43380351891/attempt1
 (workflow4e5407376191834ad11716dbe1a0a41800d79d9b). That failed build produced no
 installer. A same-revision LF/CRLF control reproduces the overlay difference, and
@@ -36,3 +37,11 @@ now runs a separate bounded source-only diagnostic: fixed vendor checkout and
 Whisper/SenseVoice compilation with private before/after Git metadata. Its small
 receipt is always NOT_QUALIFIED and all product gates remain NOT_RUN. It cannot
 run the candidate job or generate installer/native/product acceptance.
+
+
+Source diagnostic43387059514/attempt1, workflow0d3e9f5f6f8ddd5be9c581c8aa4382d42c8bc89c,
+observed clean checkout followed by one rewritten Whisper JavaScript package JSON
+(LF toCRLF); all nested sources stayed clean and normalized diff was empty. The
+subsequent preparation splits native Whisper checkout from Qwen-only LF checkout.
+A new focused diagnostic must establish clean before/after state before a full new
+candidate build. All earlier failures and diagnostic NOT_QUALIFIED outcomes remain.
