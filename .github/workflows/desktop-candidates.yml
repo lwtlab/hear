@@ -408,7 +408,7 @@ jobs:
           retention-days: 7
 
   windows:
-    if: inputs.target == 'win32-x64'
+    if: inputs.target == 'win32-x64' && inputs.mode == 'candidate'
     runs-on: windows-2025
     timeout-minutes: 120
     defaults:
@@ -527,6 +527,80 @@ jobs:
         if: always()
         with:
           name: hear-windows-candidate-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+
+  windows-source:
+    if: inputs.target == 'win32-x64' && inputs.mode == 'checks'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref }}
+      APP_REF: ${{ inputs.app_ref }}
+      CORE_REF: ${{ inputs.core_ref }}
+      BUILD_MODE: ${{ inputs.mode }}
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.0
+      - name: Validate source diagnostic and encryption
+        run: |
+          node --input-type=module <<'JS'
+          import {sourceProbeInputs} from './ci/windows-source-probe.mjs';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          import {appendFileSync} from 'node:fs';
+          const source=sourceProbeInputs(process.env);
+          encryptLog(Buffer.from('preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          appendFileSync(process.env.GITHUB_ENV,`SOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          JS
+      - uses: actions/checkout@v4
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.CORE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - name: Verify exact source checkout
+        run: node ci/assert-sources.mjs
+      - id: init
+        name: Initialize only pinned Whisper and nested source
+        run: node ci/private-step.mjs source-init core git -c core.autocrlf=false -c core.eol=lf submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+      - id: before
+        name: Record private vendor state before compilation
+        run: node ci/private-step.mjs source-before core node "$GITHUB_WORKSPACE/ci/windows-source-probe.mjs" before
+      - name: Reproduce only Whisper and SenseVoice compilation
+        run: node ci/private-step.mjs source-build app/apps/desktop bash scripts/build-myserver.sh
+      - id: after
+        if: always() && steps.before.outcome == 'success'
+        name: Record private vendor state after compilation
+        run: node ci/private-step.mjs source-after core node "$GITHUB_WORKSPACE/ci/windows-source-probe.mjs" after
+      - if: always() && steps.before.outcome == 'success' && steps.after.outcome == 'success'
+        name: Retain bounded NOT_QUALIFIED diagnostic receipt
+        run: node ci/windows-source-probe.mjs collect
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.before.outcome == 'success' && steps.after.outcome == 'success'
+        with:
+          name: hear-windows-source-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: windows-source-diagnostic/diagnostic.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hear-windows-source-encrypted-${{ github.run_id }}-${{ github.run_attempt }}
           path: diagnostics/*.enc.json
           retention-days: 7
           if-no-files-found: ignore

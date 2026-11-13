@@ -26,3 +26,13 @@ Windows' default CRLF checkout failed that anchor in run43380351891/attempt1
 installer. A same-revision LF/CRLF control reproduces the overlay difference, and
 real Git submodule controls verify that the canonical checkout overrides an
 inherited autocrlf=true. This changes preparation only; product source stays frozen.
+
+
+Run43382113251/attempt1 (workflowbdf71be2bcac66ca9cd644540f7ac7de437c9c60)
+compiled/staged all engines and loaded Qwen, then stopped before packaging because
+the pinned Whisper submodule was dirty. No installer was created and no reset is
+used to manufacture a clean provenance record. `target=win32-x64, mode=checks`
+now runs a separate bounded source-only diagnostic: fixed vendor checkout and
+Whisper/SenseVoice compilation with private before/after Git metadata. Its small
+receipt is always NOT_QUALIFIED and all product gates remain NOT_RUN. It cannot
+run the candidate job or generate installer/native/product acceptance.
