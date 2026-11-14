@@ -10,6 +10,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sourcePaths } from './dispatch.mjs';
 import { productionDesktopConfig } from './desktop-candidate-config.mjs';
+import { readCandidateRuntime, candidateGit } from './qwen-candidate.mjs';
 
 const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 const jsonValue = value => JSON.parse(value);
@@ -45,11 +46,9 @@ export function linuxConfig(base) {
   return config;
 }
 
-function git(root, ...args) {
-  return execFileSync('git', args, { cwd:root, encoding:'utf8', timeout:30000, stdio:['ignore','pipe','pipe'] }).trim();
-}
+const git=candidateGit;
 
-export function collectLinux({ workspace, source, workflow, run, attempt }) {
+export function collectLinux({ workspace, source, workflow, run, attempt, qwenProofFile=join(process.env.RUNNER_TEMP??tmpdir(),'hear-qwen-candidate.json'), qwenProofSha256=process.env.HEAR_QWEN_PROOF_SHA256 }) {
   assert(shaPattern.test(source) && shaPattern.test(workflow));
   for (const value of [run,attempt]) assert(Number.isSafeInteger(value) && value>0);
   const core=join(workspace,'core'), desktop=join(core,'apps/hear/apps/desktop');
@@ -71,24 +70,9 @@ export function collectLinux({ workspace, source, workflow, run, attempt }) {
     const file=join(bin,name);regular(file);assert(lstatSync(file).mode&0o111);
     inputs.engines.push({name,bytes:lstatSync(file).size,sha256:sha(file)});
   }
-  const qwen=json(join(bin,'qwen3/hear-stage.json')), recordFile=join(core,'.llama-build/upstream-cpu/reader-build.json'), record=json(recordFile);
-  assert.equal(qwen.platform,'linux');assert.equal(qwen.arch,'x64');
-  assert.equal(record.platform,'linux');assert.equal(record.arch,'x64');assert.equal(record.backend,'cpu');
-  assert.equal(record.runtime,'upstream-asr');assert.equal(record.revision,json(join(core,'native/reader-models/models.lock.json')).upstreamRevision);
-  const adapters=['runtime-files.mjs','CMakeLists.txt','main.cpp','request.h','aligner.h','aligner-text.h','compat/prepare.py','compat/qwen3a-legacy.inc','compat/preprocess.inc','compat/mask.inc','compat/q6-legacy.inc'].map(name=>'native/qwen3-asr/'+name);
-  assert.deepEqual(new Set(Object.keys(record.adapterFiles??{})),new Set(adapters),'Complete reviewed ASR adapter set required');
-  for(const [file,digest]of Object.entries(record.adapterFiles)) {
-    assert(!file.startsWith('/') && !file.split(/[\\/]/).includes('..'));
-    regular(join(core,file));assert.equal(sha(join(core,file)),digest);
-  }
-  for(const [name,digest]of Object.entries(qwen.staged)) {
-    assert.equal(basename(name),name);regular(join(bin,'qwen3',name));assert.equal(sha(join(bin,'qwen3',name)),digest);
-    assert.equal(record.files[name],digest,'Linux staged runtime must match source build');
-  }
-  const staged=json(join(bin,'qwen3/reader-build.json'));
-  assert.equal(staged.buildRecordSha256,sha(recordFile));
-  assert.deepEqual(new Set(Object.keys(qwen.staged)),new Set(Object.keys(record.files)));
-  inputs.qwen={upstreamRevision:record.revision,backend:'cpu',buildRecordSha256:sha(recordFile),adapterSetSha256:createHash('sha256').update(JSON.stringify(record.adapterFiles)).digest('hex'),staged:qwen.staged};
+  const proof=readCandidateRuntime({core,stage:join(bin,'qwen3'),source,workflow,run,attempt,proofFile:qwenProofFile,proofSha256:qwenProofSha256,target:'linux-x64-cuda-sm61'});
+  const qwen={staged:{...Object.fromEntries(Object.entries(proof.stagedFiles).map(([name,file])=>[name,file.sha256])),'reader-build.json':proof.metadataSha256['stage/reader-build.json'],'hear-stage.json':proof.metadataSha256['stage/hear-stage.json']}};
+  inputs.qwen={...proof,staged:qwen.staged};
   const release=join(desktop,'release/linux-original');
   const version=json(join(desktop,'package.json')).version;assert(/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version));
   const name=`AIHear-${version}-linux-amd64.deb`, file=join(release,name);regular(file);

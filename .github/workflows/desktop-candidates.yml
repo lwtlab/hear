@@ -47,6 +47,7 @@ jobs:
       CORE_REF: ${{ inputs.core_ref }}
       BUILD_MODE: ${{ inputs.mode || 'checks' }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
+      QWEN_NATIVE_TARGET: darwin-arm64-metal
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
@@ -64,7 +65,7 @@ jobs:
           import { encryptLog } from './ci/log-crypto.mjs';
           const source = resolveDispatch({ sourceRef: process.env.SOURCE_REF, appRef: process.env.APP_REF, coreRef: process.env.CORE_REF, defaultSourceRef: process.env.DEFAULT_SOURCE_REF, mode: process.env.BUILD_MODE ?? 'checks' });
           const { appendFileSync } = await import('node:fs');
-          appendFileSync(process.env.GITHUB_ENV, `SOURCE_REF=${source.sourceRef ?? ''}\nSOURCE_LAYOUT=${source.layout}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
+          appendFileSync(process.env.GITHUB_ENV, `SOURCE_REF=${source.sourceRef ?? ''}\nSOURCE_LAYOUT=${source.layout}\nHEAR_QWEN_RUNTIME_MODE=${source.layout === 'monorepo' ? 'verified-ci' : 'build'}\nHEAR_APP_PATH=${source.appPath}\nAPP_REF=${source.appRef}\nCORE_REF=${source.coreRef}\n`);
           if (process.platform !== 'darwin' || process.arch !== 'arm64') throw new Error('macOS arm64 runner required');
           encryptLog(Buffer.from('preflight'), process.env.HEAR_LOG_PUBLIC_KEY);
           JS
@@ -87,6 +88,16 @@ jobs:
           submodules: false
       - name: Verify source checkout identities
         run: node ci/assert-sources.mjs
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        if: inputs.mode == 'candidate' && env.SOURCE_LAYOUT == 'monorepo'
+        with:
+          python-version: '3.12'
+      - id: qwen_runtime
+        name: Restore verified shared Qwen GPU runtime
+        if: inputs.mode == 'candidate' && env.SOURCE_LAYOUT == 'monorepo'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" consume
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
@@ -134,12 +145,22 @@ jobs:
       - name: Build native dependencies from pinned sources
         if: inputs.mode == 'candidate'
         run: node ci/private-step.mjs native app bash scripts/ci-macos-native.sh
+      - id: qwen_proof
+        name: Verify shared GPU origin and staged bytes
+        if: inputs.mode == 'candidate' && env.SOURCE_LAYOUT == 'monorepo'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAR_QWEN_RECEIPT_SHA256: ${{ steps.qwen_runtime.outputs.native_receipt_sha256 }}
+          HEAR_QWEN_ORIGIN_SHA256: ${{ steps.qwen_runtime.outputs.consumer_origin_sha256 }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" verify
       - name: Build unsigned original candidate
         if: inputs.mode == 'candidate'
         run: node ci/private-step.mjs package app bash scripts/ci-macos-package.sh
       - name: Collect explicit assets and provenance
         if: inputs.mode == 'candidate'
-        run: node ci/collect-candidate.mjs
+        env:
+          HEAR_QWEN_PROOF_SHA256: ${{ steps.qwen_proof.outputs.sha256 }}
+        run: node ci/private-step.mjs collect core node "$GITHUB_WORKSPACE/ci/collect-candidate.mjs" "$GITHUB_WORKSPACE"
       - uses: actions/upload-artifact@v4
         if: success() && inputs.mode == 'candidate'
         with:
@@ -178,6 +199,8 @@ jobs:
       CORE_REF: ${{ inputs.core_ref }}
       BUILD_MODE: ${{ inputs.mode }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
+      QWEN_NATIVE_TARGET: linux-x64-cuda-sm61
+      HEAR_QWEN_RUNTIME_MODE: verified-ci
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
@@ -208,6 +231,14 @@ jobs:
           submodules: false
       - name: Verify source checkout identities
         run: node ci/assert-sources.mjs
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - id: qwen_runtime
+        name: Restore verified shared Qwen GPU runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" consume
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
@@ -233,13 +264,10 @@ jobs:
         name: Build and load exact-source native core
         run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Initialize only required pinned ASR engine sources
-        run: node ci/private-step.mjs asr-source core git -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp third_party/llama.cpp-upstream
+        run: node ci/private-step.mjs asr-source core git -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
       - id: asr
         name: Build Whisper and SenseVoice engines
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
-      - id: qwen
-        name: Build shared Reader Qwen3 ASR CPU runtime
-        run: node ci/private-step.mjs qwen-build core node scripts/build-reader-llama.mjs --backend cpu --jobs 2
       - id: ffmpeg
         name: Build LGPL audio runtime
         run: node ci/private-step.mjs ffmpeg-build app/apps/desktop bash scripts/build-ffmpeg-lgpl.sh
@@ -257,6 +285,13 @@ jobs:
         run: node ci/private-step.mjs stage app/apps/desktop node scripts/stage-all.mjs
       - name: Load staged Qwen CLI without build-library environment
         run: node ci/private-step.mjs qwen-smoke app/apps/desktop env -u LD_LIBRARY_PATH -u LD_PRELOAD ./resources/bin/linux-x64/qwen3/reader-qwen3-asr --help
+      - id: qwen_proof
+        name: Verify shared GPU origin and staged bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAR_QWEN_RECEIPT_SHA256: ${{ steps.qwen_runtime.outputs.native_receipt_sha256 }}
+          HEAR_QWEN_ORIGIN_SHA256: ${{ steps.qwen_runtime.outputs.consumer_origin_sha256 }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" verify
       - id: frontend
         name: Build original application
         run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
@@ -265,6 +300,8 @@ jobs:
         run: node ci/private-step.mjs linux-package app node "$GITHUB_WORKSPACE/ci/linux-candidate.mjs" package
       - id: collect
         name: Verify actual deb payload and exact-source receipt
+        env:
+          HEAR_QWEN_PROOF_SHA256: ${{ steps.qwen_proof.outputs.sha256 }}
         run: node ci/linux-candidate.mjs collect
       - uses: actions/upload-artifact@v4
         if: success()
@@ -420,10 +457,16 @@ jobs:
       CORE_REF: ${{ inputs.core_ref }}
       BUILD_MODE: ${{ inputs.mode }}
       HEAR_CORE_DIR: ${{ github.workspace }}/core
+      QWEN_NATIVE_TARGET: win32-x64-cuda-sm89
+      HEAR_QWEN_RUNTIME_MODE: verified-ci
       HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
     steps:
+      - name: Keep source and native policy checkout bytes canonical
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -450,6 +493,14 @@ jobs:
           submodules: false
       - name: Verify exact source checkout
         run: node ci/assert-sources.mjs
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - id: qwen_runtime
+        name: Restore verified shared Qwen GPU runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" consume
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: ${{ env.HEAR_APP_PATH }}/package.json
@@ -464,12 +515,11 @@ jobs:
         run: node ci/private-step.mjs core app bash scripts/ci-core.sh
       - name: Initialize required pinned ASR sources
         run: |
-          node ci/private-step.mjs asr-source core git submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
-          node ci/private-step.mjs qwen-source core git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init --recursive -- third_party/llama.cpp-upstream
+          node ci/private-step.mjs asr-source core "$READER_GIT" -c core.autocrlf=true -c core.eol=native submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
+          node ci/private-step.mjs asr-source core "$READER_GIT" -C apps/hear/apps/desktop/vendor/whisper.cpp config --local core.autocrlf true
+          node ci/private-step.mjs asr-source core "$READER_GIT" -C apps/hear/apps/desktop/vendor/whisper.cpp config --local core.eol native
       - name: Build Whisper and SenseVoice CPU engines
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
-      - name: Build shared Reader Qwen3 ASR CPU runtime
-        run: node ci/private-step.mjs qwen-build core node scripts/build-reader-llama.mjs --backend cpu --jobs 2
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -497,6 +547,13 @@ jobs:
         run: node ci/private-step.mjs stage app/apps/desktop node scripts/stage-all.mjs
       - name: Verify staged Qwen runtime loads
         run: node ci/private-step.mjs qwen-smoke app/apps/desktop ./resources/bin/win32-x64/qwen3/reader-qwen3-asr.exe --help
+      - id: qwen_proof
+        name: Verify shared GPU origin and staged bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAR_QWEN_RECEIPT_SHA256: ${{ steps.qwen_runtime.outputs.native_receipt_sha256 }}
+          HEAR_QWEN_ORIGIN_SHA256: ${{ steps.qwen_runtime.outputs.consumer_origin_sha256 }}
+        run: node ci/native-private-step.mjs consume node "$GITHUB_WORKSPACE/ci/qwen-candidate.mjs" verify
       - name: Build original application
         run: node ci/private-step.mjs frontend app/apps/desktop pnpm build
       - name: Locate installer payload inspector
@@ -507,6 +564,8 @@ jobs:
       - name: Package original Windows application with production gates
         run: node ci/private-step.mjs windows-package app node "$GITHUB_WORKSPACE/ci/windows-candidate.mjs" package
       - name: Verify actual NSIS payload and retained production fuses
+        env:
+          HEAR_QWEN_PROOF_SHA256: ${{ steps.qwen_proof.outputs.sha256 }}
         run: node ci/windows-candidate.mjs collect
       - uses: actions/upload-artifact@v4
         if: success()
