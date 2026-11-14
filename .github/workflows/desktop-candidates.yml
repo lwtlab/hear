@@ -516,6 +516,7 @@ jobs:
           node ci/private-step.mjs asr-source core "$READER_GIT" -c core.autocrlf=true -c core.eol=native submodule update --init --recursive -- apps/hear/apps/desktop/vendor/whisper.cpp
           node ci/private-step.mjs asr-source core "$READER_GIT" -C apps/hear/apps/desktop/vendor/whisper.cpp config --local core.autocrlf true
           node ci/private-step.mjs asr-source core "$READER_GIT" -C apps/hear/apps/desktop/vendor/whisper.cpp config --local core.eol native
+          node ci/private-step.mjs asr-source core "$READER_GIT" -C apps/hear/apps/desktop/vendor/whisper.cpp submodule foreach --recursive 'git config --local core.autocrlf true && git config --local core.eol native'
       - name: Build Whisper and SenseVoice CPU engines
         run: node ci/private-step.mjs asr-build app/apps/desktop bash scripts/build-myserver.sh
       - uses: msys2/setup-msys2@v2

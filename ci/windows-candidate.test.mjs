@@ -103,3 +103,25 @@ test('Windows canonical root checkout matches producer bytes while Whisper keeps
  git(root,'-c','core.autocrlf=true','-c','core.eol=native','clone','-q',origin,join(root,'whisper'));git(join(root,'whisper'),'config','--local','core.autocrlf','true');git(join(root,'whisper'),'config','--local','core.eol','native');writeFileSync(join(root,'whisper/policy.mjs'),'source policy\r\nsecond line\r\n');assert.equal(git(join(root,'whisper'),'status','--porcelain'),'');
  const job=readFileSync(new URL('../.github/workflows/desktop-candidates.yml',import.meta.url),'utf8').split('\n  windows:\n')[1];assert(job.indexOf('git config --global core.autocrlf false')<job.indexOf('actions/checkout'));assert(job.includes('config --local core.autocrlf true'));assert(job.includes('config --local core.eol native'));
 });
+
+test('actual Windows ASR initialization keeps nested source clean with canonical global checkout policy',t=>{
+ const root=realpathSync(mkdtempSync(join(tmpdir(),'hear-nested-eol-')));t.after(()=>rmSync(root,{recursive:true,force:true}));
+ const env={...process.env,GIT_CONFIG_GLOBAL:join(root,'global.gitconfig'),GIT_CONFIG_NOSYSTEM:'1',GIT_ALLOW_PROTOCOL:'file'};
+ const git=(cwd,...args)=>execFileSync('git',args,{cwd,env,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+ git(root,'config','--global','core.autocrlf','false');git(root,'config','--global','core.eol','lf');
+ const commit=cwd=>{git(cwd,'add','.');git(cwd,'-c','user.name=Control','-c','user.email=control@example.invalid','commit','-m','synthetic source');};
+ const nested=join(root,'nested'),origin=join(root,'origin'),parent=join(root,'parent');
+ for(const cwd of [nested,origin,parent]){mkdirSync(cwd);git(cwd,'init');writeFileSync(join(cwd,'source.cpp'),'first line\nsecond line\n');commit(cwd);}
+ git(origin,'submodule','add',nested,'SenseVoice.cpp');commit(origin);
+ writeFileSync(join(parent,'.gitmodules'),'[submodule "pinned"]\n path = pinned\n url = '+origin+'\n');
+ git(parent,'add','.gitmodules');git(parent,'update-index','--add','--cacheinfo','160000,'+git(origin,'rev-parse','HEAD')+',pinned');git(parent,'-c','user.name=Control','-c','user.email=control@example.invalid','commit','-m','synthetic gitlink');
+ const workflow=readFileSync(new URL('../.github/workflows/desktop-candidates.yml',import.meta.url),'utf8').split('\n  windows:\n')[1];
+ const block=workflow.split('      - name: Initialize required pinned ASR sources\n        run: |\n')[1].split('      - name: Build Whisper')[0];
+ const commands=block.trim().split('\n').map(line=>line.trim().replace('node ci/private-step.mjs asr-source core ','').replaceAll('apps/hear/apps/desktop/vendor/whisper.cpp','pinned'));
+ for(const command of commands)execFileSync('bash',['-e','-c',command],{cwd:parent,env:{...env,READER_GIT:realpathSync(execFileSync('which',['git'],{encoding:'utf8'}).trim())},stdio:['ignore','pipe','pipe']});
+ assert(readFileSync(join(parent,'pinned/SenseVoice.cpp/source.cpp')).includes(Buffer.from('\r\n')),'Exercise temporary CRLF checkout in nested source');
+ assert.equal(git(join(parent,'pinned/SenseVoice.cpp'),'status','--porcelain=v1','--untracked-files=normal'),'','Nested source must remain clean');
+ assert.equal(git(parent,'status','--porcelain=v1','--untracked-files=normal'),'','Exact-source gate must remain clean');
+ writeFileSync(join(parent,'pinned/SenseVoice.cpp/source.cpp'),'changed source\r\n');
+ assert.notEqual(git(parent,'status','--porcelain=v1','--untracked-files=normal'),'','Real nested source changes must still fail the clean-source gate');
+});
