@@ -1,0 +1,45 @@
+# Reusable Qwen GPU runtime
+
+`qwen-gpu-runtime.yml` compiles only the shared ASR runtime in public CI. Windows/Linux machines perform native GPU, application and audio validation; they do not rebuild the runtime. CI receipts mark GPU execution **NOT_RUN**.
+
+Targets initially match the available validation hardware: Windows x64 CUDA SM89 (RTX4060), Linux x64 CUDA SM61 (GTX1080Ti), and macOS arm64 Metal. These profiles are not a universal GPU compatibility claim. Dispatch with a reviewed full `source_ref` and target; the dedicated `QWEN_NATIVE_SOURCE_SHA` variable supplies the push/default source.
+
+The recipe key binds the actual upstream gitlink (which must equal the model lock), the complete tracked native adapter tree, build/bundle scripts, GPU backend/architecture, locked public SDK/tool archives and the complete public execution policy. Unknown native inputs fail closed. UI-only source changes retain the recipe; native or policy changes invalidate it.
+
+The separate build key retains the original compiler identity and runner image. Reuse never relabels a native binary with a new source SHA: producer source/workflow/run/attempt remain intact, alongside the consumer source and exact native-input compatibility proof. It does not transfer signed-package, model-quality or live-audio acceptance.
+
+Native payloads are immutable Actions artifacts with 90-day retention. A consumer verifies the GitHub ZIP digest, same-repository successful producer attempt, complete producer policy Git blobs, source recipe and every payload byte/license. Expiry triggers a new build with its own identity. Invalid provenance is an error, not permission to fall back to CPU/local compilation. `force_build` deliberately makes a new, separately recorded artifact.
+
+Only checksummed public vendor archives enter Actions cache. Private source, object files, compiler logs, user data and model weights are excluded. Native payloads contain explicit executable/library inventory, licenses and sanitized receipts; raw build configuration and private output remain in short-lived encrypted diagnostics.
+
+SDK extraction allows at most 2 GiB per member and 4 GiB per archive after the locked SHA/size checks: CUDA 12.8.1's Linux SDK includes a 1,089,740,204-byte static cuBLAS library. Static SDK archives are not shipped. Runtime transport retains the 1 GiB member limit and payload validation retains its 2 GiB total limit.
+
+An application candidate may use `QWEN_NATIVE_TARGET=<profile> node ci/native-private-step.mjs consume node "$PWD/ci/qwen-candidate.mjs" consume` after exact private checkout. This restores a verified portable runtime to `.llama-build/upstream-<backend>`; if no valid artifact exists, run the native producer first. Application source gates, NAPI source identity, signing and local GPU acceptance remain independent. Original desktop candidate callers now restore this artifact before native application work, require `HEAR_QWEN_RUNTIME_MODE=verified-ci`, and verify staged provenance before packaging. Native compilation remains independent of GPU/application acceptance.
+
+## Original candidate consumption
+
+The Windows/Linux original-candidate jobs restore the corresponding CUDA runtime; monorepo macOS candidates restore Metal. Other native application dependencies retain their existing exact-source build gates. Qwen is never rebuilt as a CPU fallback inside a candidate.
+
+`qwen-candidate.mjs consume` retains receipt hashes from the digest-verified immutable ZIP and exports them through the restore step output. `qwen-candidate.mjs verify` requires those external hashes and rechecks the original successful producer attempt/policy, immutable payload inventory, current consumer native inputs and byte-identical staging. It writes a bounded verification receipt and exports its SHA256 through the GitHub step output. Collectors require that exact output digest, candidate source/workflow/run/attempt, unchanged native inputs and staged bytes. Installer payload checks include the retained producer/consumer JSON; compilation and package creation keep GPU execution and installed-application acceptance separate.
+
+The Windows collector admits CUDA libraries above 512 MiB while retaining explicit 1 GiB member, 4 GiB archive-tree and 2 GiB staging limits. This does not change the native producer's payload limits. The source-bound original tests, privacy hooks, fuses, sandbox behavior and mandatory push/Reader checks remain in force.
+
+## Hosted loader checks
+
+CUDA runtime bytes depend on the target machine's NVIDIA driver (`libcuda.so.1` on Linux,
+`nvcuda.dll` on Windows); the driver is not redistributed in the application. A hosted
+compiler may have no driver. After full artifact and staged-byte verification, candidates
+inspect this dependency separately: absence of this external driver records host CLI
+loading as **NOT_RUN / NVIDIA_DRIVER_MISSING**. Linux rejects every other missing library
+and unrecognized loader error. Windows checks the system driver directory after the
+complete portable DLL inventory has been verified. When the driver is present, or for
+Metal, `--help` must exit successfully. Attempted CLI failures and probe timeouts remain
+fatal. Loader environment overrides are removed only from the probe child, and its
+deadline uses a terminating signal that an ignored SIGTERM cannot defeat.
+
+The host-load result and loader-verifier SHA256 are retained in the frozen candidate
+proof and checked again after packaging. `CLI_HELP_ONLY` is separate from GPU inference;
+GPU execution remains **NOT_RUN** throughout hosted candidate construction. Actual
+GPU inference and application acceptance still require the exact candidate on a suitable
+owned device. Neither a missing driver nor a successful help invocation grants that
+acceptance or allows a CPU fallback.

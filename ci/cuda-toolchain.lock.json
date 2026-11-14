@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "cudaVersion": "12.8.1",
+  "cmakeVersion": "3.31.8",
+  "ninjaVersion": "1.13.1",
+  "packages": {
+    "win32": [
+      {
+        "id": "cuda_nvcc",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvcc/windows-x86_64/cuda_nvcc-windows-x86_64-12.8.93-archive.zip",
+        "sha256": "9fdc70b4271ed9aad4d64cd7076a7d96ec36512d074b9995fe638de669197391",
+        "bytes": 120912792,
+        "prefix": "cuda_nvcc-windows-x86_64-12.8.93-archive"
+      },
+      {
+        "id": "cuda_cudart",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/windows-x86_64/cuda_cudart-windows-x86_64-12.8.90-archive.zip",
+        "sha256": "4a39058fd8519444a81cfc7ae055d136f48d1a31ffa41ae255b35b2edd61e13b",
+        "bytes": 3037735,
+        "prefix": "cuda_cudart-windows-x86_64-12.8.90-archive"
+      },
+      {
+        "id": "cuda_cccl",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cccl/windows-x86_64/cuda_cccl-windows-x86_64-12.8.90-archive.zip",
+        "sha256": "bd8548fa1ae82f92910bebc3079e14bd58c5a92aa64596d46bd610a478cb39d7",
+        "bytes": 2911311,
+        "prefix": "cuda_cccl-windows-x86_64-12.8.90-archive"
+      },
+      {
+        "id": "libcublas",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-x86_64/libcublas-windows-x86_64-12.8.4.1-archive.zip",
+        "sha256": "57a470112cec7e112c95253dde8b3c7184d795dbd92b0bde77a4cb7f8c94c8aa",
+        "bytes": 563660944,
+        "prefix": "libcublas-windows-x86_64-12.8.4.1-archive"
+      },
+      {
+        "id": "cmake",
+        "role": "cmake",
+        "url": "https://github.com/Kitware/CMake/releases/download/v3.31.8/cmake-3.31.8-windows-x86_64.zip",
+        "sha256": "81aa9964dbabd71fe02e7ec50472fd3ad56138c49944515ece9001efbff8d719",
+        "prefix": "cmake-3.31.8-windows-x86_64"
+      },
+      {
+        "id": "ninja",
+        "role": "ninja",
+        "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-win.zip",
+        "sha256": "26a40fa8595694dec2fad4911e62d29e10525d2133c9a4230b66397774ae25bf",
+        "bytes": 289808,
+        "prefix": ""
+      }
+    ],
+    "linux": [
+      {
+        "id": "cuda_nvcc",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvcc/linux-x86_64/cuda_nvcc-linux-x86_64-12.8.93-archive.tar.xz",
+        "sha256": "9961b3484b6b71314063709a4f9529654f96782ad39e72bf1e00f070db8210d3",
+        "bytes": 79015464,
+        "prefix": "cuda_nvcc-linux-x86_64-12.8.93-archive"
+      },
+      {
+        "id": "cuda_cudart",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-12.8.90-archive.tar.xz",
+        "sha256": "8d566b5fe745c46842dc16945cf36686227536decd2302c372be86da37faca68",
+        "bytes": 1354240,
+        "prefix": "cuda_cudart-linux-x86_64-12.8.90-archive"
+      },
+      {
+        "id": "cuda_cccl",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/cuda_cccl/linux-x86_64/cuda_cccl-linux-x86_64-12.8.90-archive.tar.xz",
+        "sha256": "0740e9e01e4f15e17c5ab8d68bba4f8ec0eb6b84edccba4ac45112d2d2174e4b",
+        "bytes": 928524,
+        "prefix": "cuda_cccl-linux-x86_64-12.8.90-archive"
+      },
+      {
+        "id": "libcublas",
+        "role": "cuda",
+        "url": "https://developer.download.nvidia.com/compute/cuda/redist/libcublas/linux-x86_64/libcublas-linux-x86_64-12.8.4.1-archive.tar.xz",
+        "sha256": "21718957c2cf000bacd69d36c95708a2319199e39e056f8b4f0f68e3b9f323bb",
+        "bytes": 938651324,
+        "prefix": "libcublas-linux-x86_64-12.8.4.1-archive"
+      },
+      {
+        "id": "cmake",
+        "role": "cmake",
+        "url": "https://github.com/Kitware/CMake/releases/download/v3.31.8/cmake-3.31.8-linux-x86_64.tar.gz",
+        "sha256": "630615d8e98ac33eba7fbe472626dff5c899c85af3c024585ae109166a6909d0",
+        "prefix": "cmake-3.31.8-linux-x86_64"
+      },
+      {
+        "id": "ninja",
+        "role": "ninja",
+        "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-linux.zip",
+        "sha256": "0830252db77884957a1a4b87b05a1e2d9b5f658b8367f82999a941884cbe0238",
+        "bytes": 134048,
+        "prefix": ""
+      }
+    ],
+    "darwin": [
+      {
+        "id": "cmake",
+        "role": "cmake",
+        "url": "https://github.com/Kitware/CMake/releases/download/v3.31.8/cmake-3.31.8-macos-universal.tar.gz",
+        "sha256": "d1449f969c54d5c00886d5b643340d493dfb3c81cb39ee29b35453395c11ebf7",
+        "prefix": "cmake-3.31.8-macos-universal"
+      },
+      {
+        "id": "ninja",
+        "role": "ninja",
+        "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-mac.zip",
+        "sha256": "da7797794153629aca5570ef7c813342d0be214ba84632af886856e8f0063dd9",
+        "bytes": 314009,
+        "prefix": ""
+      }
+    ]
+  }
+}

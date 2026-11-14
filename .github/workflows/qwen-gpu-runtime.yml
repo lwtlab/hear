@@ -1,0 +1,148 @@
+name: Reusable Qwen GPU runtime
+run-name: Qwen GPU native ${{ inputs.target || 'win32-x64-cuda-sm89' }}
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Full reviewed lwt-core source SHA; defaults to dedicated native source variable
+        type: string
+        required: false
+      target:
+        type: choice
+        default: win32-x64-cuda-sm89
+        options: [win32-x64-cuda-sm89, linux-x64-cuda-sm61, darwin-arm64-metal, all]
+      force_build:
+        description: Build a separately identified artifact even when a compatible artifact exists
+        type: boolean
+        default: false
+  push:
+    branches: [ci/qwen-gpu-runtime-reuse-20261114]
+    paths: ['ci/**', '.github/workflows/qwen-gpu-runtime.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  controls:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: node --test ci/qwen-gpu-runtime.test.mjs
+  native:
+    needs: controls
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.target == 'all' && '["win32-x64-cuda-sm89","linux-x64-cuda-sm61","darwin-arm64-metal"]' || format('["{0}"]', inputs.target || 'win32-x64-cuda-sm89')) }}
+    runs-on: ${{ startsWith(matrix.target, 'win32') && 'windows-2025' || startsWith(matrix.target, 'linux') && 'ubuntu-24.04' || 'macos-26' }}
+    timeout-minutes: 150
+    concurrency:
+      group: qwen-native-${{ github.ref }}-${{ matrix.target }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_REF: ${{ inputs.source_ref || vars.QWEN_NATIVE_SOURCE_SHA }}
+      CORE_REF: ${{ inputs.source_ref || vars.QWEN_NATIVE_SOURCE_SHA }}
+      SOURCE_LAYOUT: monorepo
+      QWEN_NATIVE_TARGET: ${{ matrix.target }}
+      QWEN_FORCE_BUILD: ${{ inputs.force_build || 'false' }}
+      HEAR_LOG_PUBLIC_KEY: ${{ secrets.HEAR_LOG_PUBLIC_KEY }}
+    steps:
+      - name: Keep all checkout bytes canonical
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.22.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Validate source and diagnostic encryption before checkout
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {encryptLog} from './ci/log-crypto.mjs';
+          assert(/^[a-f0-9]{40}$/.test(process.env.SOURCE_REF ?? ''));
+          encryptLog(Buffer.from('native preflight'),process.env.HEAR_LOG_PUBLIC_KEY);
+          JS
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: lwtlab/lwt-core
+          ref: ${{ env.SOURCE_REF }}
+          path: core
+          ssh-key: ${{ secrets.HEAR_CORE_SOURCE_SSH_KEY }}
+          persist-credentials: false
+          submodules: false
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+        if: runner.os == 'Windows'
+        with:
+          arch: x64
+          toolset: '14.44'
+      - id: plan
+        name: Compute native input and GPU recipe fingerprint
+        run: node ci/native-private-step.mjs plan node "$GITHUB_WORKSPACE/ci/qwen-gpu-runtime.mjs" plan
+      - id: reuse
+        name: Verify and restore compatible immutable native artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ci/native-private-step.mjs reuse node "$GITHUB_WORKSPACE/ci/qwen-gpu-runtime.mjs" lookup
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        id: sdk-cache
+        if: steps.reuse.outputs.hit != 'true'
+        with:
+          path: ${{ runner.temp }}/qwen-sdk-downloads
+          key: qwen-public-sdk-${{ runner.os }}-${{ hashFiles('ci/cuda-toolchain.lock.json') }}
+      - name: Prepare checksummed public toolchain in the job directory
+        if: steps.reuse.outputs.hit != 'true'
+        run: node ci/native-private-step.mjs sdk node "$GITHUB_WORKSPACE/ci/cuda-toolchain.mjs"
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+        if: steps.reuse.outputs.hit != 'true' && steps.sdk-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ runner.temp }}/qwen-sdk-downloads
+          key: qwen-public-sdk-${{ runner.os }}-${{ hashFiles('ci/cuda-toolchain.lock.json') }}
+      - name: Initialize only pinned public upstream
+        if: steps.reuse.outputs.hit != 'true'
+        run: node ci/native-private-step.mjs source git -c core.autocrlf=false -c core.eol=lf -c submodule.third_party/llama.cpp-upstream.url=https://github.com/ggml-org/llama.cpp.git submodule update --init -- third_party/llama.cpp-upstream
+      - name: Compile GPU runtime
+        if: steps.reuse.outputs.hit != 'true'
+        run: |
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            node ci/native-private-step.mjs build node scripts/build-reader-llama.mjs --backend metal --jobs 4
+          else
+            arch=61
+            [[ "$RUNNER_OS" == Windows ]] && arch=89
+            node ci/native-private-step.mjs build node scripts/build-reader-llama.mjs --backend cuda --cuda-architectures "$arch" --jobs 4
+          fi
+      - name: Bundle explicit runtime dependencies and verify every payload file
+        if: steps.reuse.outputs.hit != 'true'
+        run: node ci/native-private-step.mjs collect node "$GITHUB_WORKSPACE/ci/qwen-gpu-runtime.mjs" collect
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.reuse.outputs.hit != 'true'
+        with:
+          name: qwen-gpu-${{ matrix.target }}-${{ steps.plan.outputs.recipe }}
+          path: qwen-runtime/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Encrypt diagnostics and remove plaintext
+        if: always()
+        run: node ci/seal-log.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: qwen-gpu-encrypted-log-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostics/*.enc.json
+          if-no-files-found: ignore
+          retention-days: 7

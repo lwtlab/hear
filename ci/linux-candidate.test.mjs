@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { linuxConfig, linuxInputs, collectLinux } from './linux-candidate.mjs';
 import {makeDeb} from './linux-test-deb.mjs';
+import {candidateGpuControl,candidateNativeControl} from './qwen-candidate-control.mjs';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const base={appId:'net.thucydides.lwt.hear',productName:'AIHear',afterPack:'scripts/after-pack.js',
   files:['out/**','!**/*.map','!**/node_modules/@lwtlab/*/src/**','!**/node_modules/uiohook-napi/prebuilds/*/**','**/node_modules/uiohook-napi/prebuilds/darwin-arm64/**'],
@@ -41,7 +42,7 @@ function fixture(t,mutatePayload=()=>{}) {
   const adapterFiles={};for(const name of ['runtime-files.mjs','CMakeLists.txt','main.cpp','request.h','aligner.h','aligner-text.h','compat/prepare.py','compat/qwen3a-legacy.inc','compat/preprocess.inc','compat/mask.inc','compat/q6-legacy.inc']){
     const path='native/qwen3-asr/'+name,data='synthetic adapter '+name;put('core/'+path,data);adapterFiles[path]=hash(data);
   }
-  git(join(root,'core'),'add','.');git(join(root,'core'),'-c','user.email=test@example.invalid','-c','user.name=Test','commit','-m','source');
+  const pin=candidateNativeControl(root);git(join(root,'core'),'add','.');pin();git(join(root,'core'),'-c','user.email=test@example.invalid','-c','user.name=Test','commit','-m','source');
   const source=git(join(root,'core'),'rev-parse','HEAD');
   const elf=Buffer.alloc(24);elf.set([0x7f,0x45,0x4c,0x46,2,1]);elf.writeUInt16LE(62,18);
   put('core/hear-core/hear-core.linux-x64-gnu.node',elf);
@@ -50,11 +51,8 @@ function fixture(t,mutatePayload=()=>{}) {
   for(const name of ['myserver-ggml','myserver-sv','ffmpeg/ffmpeg','pulse-capture/hear-pulse-capture','qwen3/reader-qwen3-asr']){
     const data=Buffer.from('synthetic engine '+name);const path=put(bin+'/'+name,data);execFileSync('chmod',['755',path]);payload['opt/AIHear/resources/resources/bin/linux-x64/'+name]=data;
   }
-  const runtimeFiles={'reader-qwen3-asr':hash(payload['opt/AIHear/resources/resources/bin/linux-x64/qwen3/reader-qwen3-asr'])};
-  const record={platform:'linux',arch:'x64',backend:'cpu',runtime:'upstream-asr',revision:'b'.repeat(40),adapterFiles,files:runtimeFiles};
-  const recordBytes=JSON.stringify(record);put('core/.llama-build/upstream-cpu/reader-build.json',recordBytes);
-  put(bin+'/qwen3/hear-stage.json',JSON.stringify({platform:'linux',arch:'x64',staged:runtimeFiles}));
-  put(bin+'/qwen3/reader-build.json',JSON.stringify({buildRecordSha256:hash(recordBytes)}));
+  const binaries={'reader-qwen3-asr':payload['opt/AIHear/resources/resources/bin/linux-x64/qwen3/reader-qwen3-asr']};for(const name of ['libcudart.so.12','libcublas.so.12','libcublasLt.so.12'])binaries[name]=Buffer.from('synthetic GPU library');
+  const qwenProof=candidateGpuControl({root,desktop,platform:'linux',source,workflow,binaries,adapterFiles,addPayload:(name,data)=>{payload['opt/AIHear/resources/resources/bin/linux-x64/qwen3/'+name]=data;}});
   const release=desktop+'/release/linux-original';
   for(const [name,data,target]of [['resources/app.asar','synthetic asar','opt/AIHear/resources/app.asar'],['aihear','synthetic electron','opt/AIHear/aihear']]){
     put(release+'/linux-unpacked/'+name,data);payload[target]=Buffer.from(data);
@@ -63,10 +61,10 @@ function fixture(t,mutatePayload=()=>{}) {
   payload['opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/linux-x64/node.napi.glibc.node']=Buffer.from('synthetic hook');
   const entries=Object.entries(payload).map(([name,data])=>({name,data:data.toString('base64')}));mutatePayload(entries);
   const asset=join(root,release,'AIHear-2.0.0-linux-amd64.deb');makeDeb(asset,entries);
-  return {root,source,workflow,asset,entries};
+  return {root,source,workflow,asset,entries,qwenProof};
 }
 test('collector binds actual deb bytes to clean native/engine inputs and retains every installed gate NOT_RUN',t=>{
-  const f=fixture(t),r=collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:2});
+  const f=fixture(t),r=collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:2,...f.qwenProof(12,2)});
   assert.equal(r.payload.package,'aihear');assert.equal(r.payload.architecture,'amd64');assert.equal(r.distribution,'unsigned-deb-ci-candidate');
   assert.equal(r.assets.length,1);assert(Object.values(r.acceptance).every(s=>s==='NOT_RUN'));assert.equal(r.inputs.native.clean,true);assert.equal(r.inputs.native.coreRef,f.source);
   assert.equal(r.assets[0].sha256,hash(readFileSync(f.asset)));assert.equal(JSON.parse(readFileSync(join(f.root,'linux-candidate/candidate.json'))).runAttempt,2);
@@ -84,27 +82,27 @@ for(const [name,mutate]of [
   ['regular-file ancestor',entries=>entries.push({name:'opt/AIHear/resources',data:'YQ=='})],
   ['duplicate payload',entries=>entries.push({...entries[0]})],
   ['unsafe path',entries=>entries.push({name:'../outside',data:'YQ=='})],
-])test('real deb inspection rejects '+name,t=>{const f=fixture(t,mutate);assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));});
+])test('real deb inspection rejects '+name,t=>{const f=fixture(t,mutate);assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}));});
 test('collector rejects tracked source drift before reading installer inputs',t=>{
   const f=fixture(t);writeFileSync(join(f.root,'core/apps/hear/apps/desktop/package.json'),'{"version":"9.0.0"}');
-  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));
+  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}));
 });
 test('standard desktop executable leaf link remains valid',t=>{
   const f=fixture(t,entries=>entries.push({name:'usr/bin/aihear',link:'/opt/AIHear/aihear'}));
-  assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}).payload.package,'aihear');
+  assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}).payload.package,'aihear');
 });
 test('native origin from a different private source cannot qualify a correct deb',t=>{
   const f=fixture(t),file=join(f.root,'core/hear-core/native-origin.json'),r=JSON.parse(readFileSync(file));r.coreRef='0'.repeat(40);writeFileSync(file,JSON.stringify(r));
-  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));
+  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}));
 });
 test('truncated ar payload cannot qualify',t=>{
   const f=fixture(t),bytes=readFileSync(f.asset);writeFileSync(f.asset,bytes.subarray(0,bytes.length-1));
-  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));
+  assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}));
 });
 test('Linux job cannot become a diagnostic installer or bypass production packaging gates',()=>{
   const text=readFileSync(new URL('../.github/workflows/desktop-candidates.yml',import.meta.url),'utf8'),job=text.split('\n  linux:\n')[1];
   assert(job.includes("if: inputs.target == 'linux-x64'"));assert(job.indexOf('linuxInputs(process.env)')<job.indexOf('ssh-key:'));
-  for(const line of ['scripts/ci-core.sh','scripts/build-reader-llama.mjs --backend cpu','scripts/stage-all.mjs','ci/linux-candidate.mjs" package','node ci/linux-candidate.mjs collect'])assert(job.includes(line));
+  for(const line of ['scripts/ci-core.sh','qwen-candidate.mjs\" consume','qwen-candidate.mjs\" verify','scripts/stage-all.mjs','ci/linux-candidate.mjs" package','node ci/linux-candidate.mjs collect'])assert(job.includes(line));
   assert(!job.includes('platform-probe-package')&&!job.includes('--no-sandbox')&&!job.includes('release create'));
 });
 
@@ -112,7 +110,7 @@ test('standard hotkey directory members remain valid while binary payload stays 
   const f=fixture(t,entries=>{
     entries.unshift({name:'opt/AIHear/resources/app.asar.unpacked/node_modules/uiohook-napi/prebuilds/linux-x64/',directory:true});
   });
-  assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}).payload.package,'aihear');
+  assert.equal(collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}).payload.package,'aihear');
 });
 
-test('tracked public policy drift cannot qualify an unchanged deb',t=>{const f=fixture(t);writeFileSync(join(f.root,'marker'),'modified public policy');assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1}));});
+test('tracked public policy drift cannot qualify an unchanged deb',t=>{const f=fixture(t);writeFileSync(join(f.root,'marker'),'modified public policy');assert.throws(()=>collectLinux({workspace:f.root,source:f.source,workflow:f.workflow,run:12,attempt:1,...f.qwenProof(12,1)}));});
