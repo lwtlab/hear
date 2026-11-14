@@ -12,4 +12,6 @@ Native payloads are immutable Actions artifacts with 90-day retention. A consume
 
 Only checksummed public vendor archives enter Actions cache. Private source, object files, compiler logs, user data and model weights are excluded. Native payloads contain explicit executable/library inventory, licenses and sanitized receipts; raw build configuration and private output remain in short-lived encrypted diagnostics.
 
+SDK extraction allows at most 2 GiB per member and 4 GiB per archive after the locked SHA/size checks: CUDA 12.8.1's Linux SDK includes a 1,089,740,204-byte static cuBLAS library. Static SDK archives are not shipped. Runtime transport retains the 1 GiB member limit and payload validation retains its 2 GiB total limit.
+
 An application candidate may use `QWEN_NATIVE_TARGET=<profile> node ci/native-private-step.mjs consume node "$PWD/ci/qwen-gpu-runtime.mjs" consume` after exact private checkout. This restores a verified portable runtime to `.llama-build/upstream-<backend>`; if no valid artifact exists, run the native producer first. Application source gates, NAPI source identity, signing and local GPU acceptance remain independent. The existing desktop candidate callers are updated only after the first native producer has qualified.

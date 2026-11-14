@@ -23,3 +23,25 @@ test('linked native module is rejected before its code can execute',async t=>{co
 test('direct native consumer CLI without safe absolute tools fails before inspecting private checkout',()=>{const env={...process.env,SOURCE_REF:'a'.repeat(40),QWEN_NATIVE_TARGET:'win32-x64-cuda-sm89'};for(const n of ['READER_GIT','READER_GH','READER_PYTHON'])delete env[n];const r=spawnSync(process.execPath,[join(publicRoot,'ci/qwen-gpu-runtime.mjs'),'consume'],{env,encoding:'utf8'});assert.notEqual(r.status,0);assert(r.stderr.includes('must run through native-private-step'));assert(!r.stderr.includes('spawnSync git'));});
 
 test('CMake compiler paths keep spaces and use forward separators on Windows',async()=>{const {cmakeToolPath}=await import('./cuda-toolchain.mjs');assert.equal(cmakeToolPath(String.raw`C:\Program Files\Microsoft Visual Studio\18\cl.exe`),'C:/Program Files/Microsoft Visual Studio/18/cl.exe');assert.equal(cmakeToolPath('/usr/bin/g++'),'/usr/bin/g++');assert.throws(()=>cmakeToolPath('bad\npath'));});
+
+test('only checksummed SDK extraction permits the measured Linux static library above 1 GiB',()=>{
+ const script=join(publicRoot,'ci/extract-runtime-archive.py');
+ execFileSync('python3',['-c',`import importlib.util,sys
+spec=importlib.util.spec_from_file_location('archive_policy',sys.argv[1]);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+def rejects(f):
+ try:f()
+ except AssertionError:return
+ raise AssertionError('Expected rejection')
+name='lib/libcublasLt_static.a';size=1089740204
+rejects(lambda:module.ArchivePolicy('').check(name,size))
+sdk=module.ArchivePolicy('','sdk');sdk.check(name,size)
+rejects(lambda:module.ArchivePolicy('','sdk').check(name,2*1024**3+1))
+sdk=module.ArchivePolicy('','sdk')
+sdk.check('first.a',2*1024**3);sdk.check('second.a',2*1024**3)
+rejects(lambda:sdk.check('third.a',1))
+rejects(lambda:module.ArchivePolicy('','unknown'))
+`,script]);
+ const sdk=readFileSync(join(publicRoot,'ci/cuda-toolchain.mjs'),'utf8'),runtime=readFileSync(join(publicRoot,'ci/qwen-gpu-runtime.mjs'),'utf8');
+ assert(sdk.indexOf('assert.equal(hash(archive),item.sha256)')<sdk.indexOf("archive,target,item.prefix,'sdk'"));
+ assert(sdk.includes("archive,target,item.prefix,'sdk'"));assert(runtime.includes("zip,destination,''"));
+});
