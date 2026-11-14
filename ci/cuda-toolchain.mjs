@@ -1,7 +1,7 @@
 // Only vendor archives are cached. No private source/build tree enters this cache.
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {readFileSync,writeFileSync,existsSync,mkdirSync,readdirSync,lstatSync,realpathSync,copyFileSync,appendFileSync,createWriteStream,chmodSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync,mkdirSync,readdirSync,lstatSync,realpathSync,copyFileSync,appendFileSync,createWriteStream,chmodSync,symlinkSync} from 'node:fs';
 import {pipeline} from 'node:stream/promises';
 import {join,resolve,dirname,relative,isAbsolute} from 'node:path';
 import {execFileSync} from 'node:child_process';
@@ -18,6 +18,11 @@ export async function prepareCudaToolchain({root,cache,platform=process.platform
  }
  const sdk=join(root,'cuda');mkdirSync(sdk);const moveTree=(base,at,pkg)=>{for(const name of readdirSync(at)){const f=join(at,name),stat=lstatSync(f);if(stat.isDirectory()){moveTree(base,f,pkg);continue;}const real=realpathSync(f),rel=relative(realpathSync(base),real);assert(!isAbsolute(rel)&&!rel.split(/[\\/]/).includes('..'));assert(lstatSync(real).isFile());const path=relative(base,f),top=path.split(/[\\/]/)[0],to=join(sdk,['bin','include','lib','nvvm','extras'].includes(top)?path:join('component-metadata',pkg,path));mkdirSync(dirname(to),{recursive:true});if(existsSync(to))assert.equal(hash(to),hash(real),'Conflicting CUDA SDK files');else copyFileSync(real,to);}};
  for(const item of lock.packages[platform].filter(p=>p.role==='cuda'))moveTree(join(root,item.id),join(root,item.id),item.id);
+ if(platform==='linux'){
+  // NVIDIA's split archives use lib; nvcc.profile searches TOP/lib64.
+  for(const name of ['libcudart_static.a','libcudadevrt.a'])assert(lstatSync(join(sdk,'lib',name)).isFile());
+  symlinkSync('lib',join(sdk,'lib64'),'dir');
+ }
  const runtimeFiles={};if(platform!=='darwin'){
   const names=platform==='win32'?['cudart64_12.dll','cublas64_12.dll','cublasLt64_12.dll']:['libcudart.so.12','libcublas.so.12','libcublasLt.so.12'];
   for(const name of names){const path=join(platform==='win32'?'bin':'lib',name);runtimeFiles[name]={path,sha256:hash(join(sdk,path))};}

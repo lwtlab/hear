@@ -45,3 +45,15 @@ rejects(lambda:module.ArchivePolicy('','unknown'))
  assert(sdk.indexOf('assert.equal(hash(archive),item.sha256)')<sdk.indexOf("archive,target,item.prefix,'sdk'"));
  assert(sdk.includes("archive,target,item.prefix,'sdk'"));assert(runtime.includes("zip,destination,''"));
 });
+
+test('assembled Linux SDK satisfies nvcc lib64 search without changing shipped runtime inventory',async t=>{
+ const {prepareCudaToolchain}=await import('./cuda-toolchain.mjs'),{createHash}=await import('node:crypto');
+ const dir=mkdtempSync(join(tmpdir(),'cuda-layout-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));const cache=join(dir,'cache');mkdirSync(cache);const packages=[];
+ for(const [id,entries] of [['libcublas',['lib/libcudart.so.12','lib/libcublas.so.12','lib/libcublasLt.so.12','lib/libcudart_static.a','lib/libcudadevrt.a','LICENSE']],['cmake',['bin/cmake']],['ninja',['ninja']]]){
+  const file=join(dir,id+'.zip');execFileSync('python3',['-c','import zipfile,json,sys\nwith zipfile.ZipFile(sys.argv[1],"w") as z:\n for n in json.loads(sys.argv[2]):z.writestr("sdk/"+n,"synthetic SDK control")',file,JSON.stringify(entries)]);
+  const bytes=readFileSync(file),sha256=createHash('sha256').update(bytes).digest('hex');copyFileSync(file,join(cache,id+'-'+sha256+'.archive'));packages.push({id,role:id==='libcublas'?'cuda':'tool',prefix:'sdk',sha256,bytes:bytes.length});
+ }
+ const lockFile=join(dir,'lock.json');writeFileSync(lockFile,JSON.stringify({cudaVersion:'12.8.1',packages:{linux:packages}}));
+ const saved=Object.fromEntries(['GITHUB_ENV','GITHUB_PATH'].map(n=>[n,process.env[n]]));for(const n of Object.keys(saved))delete process.env[n];
+ try{const {sdk,receipt}=await prepareCudaToolchain({root:join(dir,'sdk'),cache,platform:'linux',lockFile});for(const name of ['libcudart_static.a','libcudadevrt.a'])assert.equal(readFileSync(join(sdk,'lib64',name),'utf8'),'synthetic SDK control');assert.deepEqual(Object.keys(receipt.runtimeFiles).sort(),['LICENSE.NVIDIA.CUDA.txt','libcublas.so.12','libcublasLt.so.12','libcudart.so.12'].sort());}finally{for(const [n,v]of Object.entries(saved))if(v===undefined)delete process.env[n];else process.env[n]=v;}
+});
