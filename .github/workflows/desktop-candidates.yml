@@ -108,7 +108,7 @@ jobs:
       - name: Test integration tools
         run: |
           if [[ "$SOURCE_LAYOUT" == monorepo ]]; then
-            node ci/private-step.mjs integration core bash scripts/hear.sh check
+            env -u HEAR_QWEN_RUNTIME_MODE node ci/private-step.mjs integration core bash scripts/hear.sh check
           else
             node ci/private-step.mjs integration app pnpm test:integration-tools
           fi
@@ -253,7 +253,7 @@ jobs:
           node ci/private-step.mjs install app pnpm install --frozen-lockfile
       - id: integration
         name: Monorepo integration tools
-        run: node ci/private-step.mjs integration core bash scripts/hear.sh check
+        run: env -u HEAR_QWEN_RUNTIME_MODE node ci/private-step.mjs integration core bash scripts/hear.sh check
       - id: types
         name: Type safety
         run: node ci/private-step.mjs typecheck app pnpm typecheck
