@@ -283,8 +283,6 @@ jobs:
       - id: stage
         name: Stage all platform-supported native inputs
         run: node ci/private-step.mjs stage app/apps/desktop node scripts/stage-all.mjs
-      - name: Load staged Qwen CLI without build-library environment
-        run: node ci/private-step.mjs qwen-smoke app/apps/desktop env -u LD_LIBRARY_PATH -u LD_PRELOAD ./resources/bin/linux-x64/qwen3/reader-qwen3-asr --help
       - id: qwen_proof
         name: Verify shared GPU origin and staged bytes
         env:
@@ -545,8 +543,6 @@ jobs:
           test "$(gitleaks version)" = '8.30.1'
       - name: Stage all supported native inputs
         run: node ci/private-step.mjs stage app/apps/desktop node scripts/stage-all.mjs
-      - name: Verify staged Qwen runtime loads
-        run: node ci/private-step.mjs qwen-smoke app/apps/desktop ./resources/bin/win32-x64/qwen3/reader-qwen3-asr.exe --help
       - id: qwen_proof
         name: Verify shared GPU origin and staged bytes
         env:

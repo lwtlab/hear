@@ -23,3 +23,23 @@ The Windows/Linux original-candidate jobs restore the corresponding CUDA runtime
 `qwen-candidate.mjs consume` retains receipt hashes from the digest-verified immutable ZIP and exports them through the restore step output. `qwen-candidate.mjs verify` requires those external hashes and rechecks the original successful producer attempt/policy, immutable payload inventory, current consumer native inputs and byte-identical staging. It writes a bounded verification receipt and exports its SHA256 through the GitHub step output. Collectors require that exact output digest, candidate source/workflow/run/attempt, unchanged native inputs and staged bytes. Installer payload checks include the retained producer/consumer JSON; compilation and package creation keep GPU execution and installed-application acceptance separate.
 
 The Windows collector admits CUDA libraries above 512 MiB while retaining explicit 1 GiB member, 4 GiB archive-tree and 2 GiB staging limits. This does not change the native producer's payload limits. The source-bound original tests, privacy hooks, fuses, sandbox behavior and mandatory push/Reader checks remain in force.
+
+## Hosted loader checks
+
+CUDA runtime bytes depend on the target machine's NVIDIA driver (`libcuda.so.1` on Linux,
+`nvcuda.dll` on Windows); the driver is not redistributed in the application. A hosted
+compiler may have no driver. After full artifact and staged-byte verification, candidates
+inspect this dependency separately: absence of this external driver records host CLI
+loading as **NOT_RUN / NVIDIA_DRIVER_MISSING**. Linux rejects every other missing library
+and unrecognized loader error. Windows checks the system driver directory after the
+complete portable DLL inventory has been verified. When the driver is present, or for
+Metal, `--help` must exit successfully. Attempted CLI failures and probe timeouts remain
+fatal. Loader environment overrides are removed only from the probe child, and its
+deadline uses a terminating signal that an ignored SIGTERM cannot defeat.
+
+The host-load result and loader-verifier SHA256 are retained in the frozen candidate
+proof and checked again after packaging. `CLI_HELP_ONLY` is separate from GPU inference;
+GPU execution remains **NOT_RUN** throughout hosted candidate construction. Actual
+GPU inference and application acceptance still require the exact candidate on a suitable
+owned device. Neither a missing driver nor a successful help invocation grants that
+acceptance or allows a CPU fallback.

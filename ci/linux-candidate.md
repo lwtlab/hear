@@ -4,8 +4,9 @@
 40-character monorepo `source_ref`. It rejects legacy source pairs. Omitting target
 retains the existing macOS workflow; the diagnostic cross-platform workflow is unchanged.
 
-The Linux job rebuilds native core, Whisper/SenseVoice, LGPL FFmpeg, the shared Reader
-Qwen3 CPU runtime and scoped PulseAudio helper from pinned sources. Staging is strict.
+The Linux job rebuilds native core, Whisper/SenseVoice, LGPL FFmpeg and the scoped
+PulseAudio helper from pinned sources, and restores the verified shared Reader
+Qwen3 CUDA runtime. Staging is strict.
 The original application is compiled without diagnostic preferences, product identity,
 profile overrides, model/audio injection or sandbox switches.
 

@@ -2,8 +2,8 @@
 
 Dispatch `desktop-candidates.yml` with an exact monorepo `source_ref`,
 `target=win32-x64`, `mode=candidate`. This builds the original AIHear application,
-source-bound N-API, Whisper/SenseVoice, shared Reader Qwen CPU runtime and LGPL
-FFmpeg. It does not run a WASAPI or microphone probe.
+source-bound N-API, Whisper/SenseVoice and LGPL FFmpeg, and restores the verified
+shared Reader Qwen CUDA runtime. It does not run a WASAPI or microphone probe.
 
 The adapter retains the original product identity, exclusions, production afterPack
 privacy gate and fuses. Windows-specific changes select x64 hotkey prebuilds and a
