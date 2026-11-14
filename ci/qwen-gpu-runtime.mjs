@@ -6,7 +6,7 @@ import {join,resolve,dirname,basename,isAbsolute} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 export const PROFILES=Object.freeze({'win32-x64-cuda-sm89':{platform:'win32',arch:'x64',backend:'cuda',cudaArchitectures:'89',compiler:'msvc-v143-14.44'},'linux-x64-cuda-sm61':{platform:'linux',arch:'x64',backend:'cuda',cudaArchitectures:'61',compiler:'ubuntu-24.04-gcc13'},'darwin-arm64-metal':{platform:'darwin',arch:'arm64',backend:'metal',cudaArchitectures:null,compiler:'macos-26-xcode'}});
-export const POLICY_FILES=Object.freeze(['.github/workflows/qwen-gpu-runtime.yml','ci/qwen-gpu-runtime.mjs','ci/cuda-toolchain.mjs','ci/cuda-toolchain.lock.json','ci/extract-runtime-archive.py','ci/native-private-step.mjs','ci/seal-log.mjs','ci/log-crypto.mjs']);
+export const POLICY_FILES=Object.freeze(['.github/workflows/qwen-gpu-runtime.yml','ci/qwen-gpu-runtime.mjs','ci/cuda-toolchain.mjs','ci/cuda-toolchain.lock.json','ci/extract-runtime-archive.py','ci/native-private-step.mjs','ci/qwen-gpu-runtime.test.mjs','ci/seal-log.mjs','ci/log-crypto.mjs']);
 const here=dirname(fileURLToPath(import.meta.url)),publicRoot=resolve(here,'..');const sha=b=>createHash('sha256').update(b).digest('hex');const hash=p=>sha(readFileSync(p));const json=p=>JSON.parse(readFileSync(p));
 export function canonical(value){if(Array.isArray(value))return value.map(canonical);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])]));return value;}
 export const key=value=>sha(Buffer.from(JSON.stringify(canonical(value))));

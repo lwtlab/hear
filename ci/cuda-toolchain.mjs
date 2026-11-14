@@ -7,6 +7,7 @@ import {join,resolve,dirname,relative,isAbsolute} from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 const here=dirname(fileURLToPath(import.meta.url));const hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+export function cmakeToolPath(value){assert.equal(typeof value,'string');assert(!/[\r\n]/.test(value));return value.replaceAll('\\','/');}
 export async function prepareCudaToolchain({root,cache,platform=process.platform,lockFile=join(here,'cuda-toolchain.lock.json')}){
  assert(!existsSync(root),'Fresh SDK root required');const lock=JSON.parse(readFileSync(lockFile));assert(lock.packages[platform]);mkdirSync(root,{recursive:true});mkdirSync(cache,{recursive:true});const packages=[];
  for(const item of lock.packages[platform]){
@@ -29,9 +30,10 @@ export async function prepareCudaToolchain({root,cache,platform=process.platform
  if(process.env.GITHUB_PATH)appendFileSync(process.env.GITHUB_PATH,[cmakeDir,ninjaDir,...(platform==='darwin'?[]:[join(sdk,'bin')])].join('\n')+'\n');
  if(process.env.GITHUB_ENV){
   const find=name=>execFileSync('/usr/bin/which',[name],{cwd:process.env.RUNNER_TEMP,encoding:'utf8'}).trim();
-  const cxx=platform==='win32'?join(process.env.VCToolsInstallDir,'bin/Hostx64/x64/cl.exe'):platform==='darwin'?execFileSync('/usr/bin/xcrun',['--find','clang++'],{encoding:'utf8'}).trim():find('g++');
-  const cc=platform==='win32'?cxx:platform==='darwin'?execFileSync('/usr/bin/xcrun',['--find','clang'],{encoding:'utf8'}).trim():find('gcc');
-  appendFileSync(process.env.GITHUB_ENV,`CMAKE_GENERATOR=Ninja\nCUDAToolkit_ROOT=${sdk}\nCUDA_PATH=${sdk}\nREADER_CMAKE=${join(cmakeDir,'cmake'+(platform==='win32'?'.exe':''))}\nREADER_NINJA=${join(ninjaDir,'ninja'+(platform==='win32'?'.exe':''))}\nREADER_CXX=${cxx}\nREADER_CC=${cc}\n${platform==='darwin'?'':`READER_CUDA_COMPILER=${join(sdk,'bin','nvcc'+(platform==='win32'?'.exe':''))}\n`}`);
+  const rawCxx=platform==='win32'?join(process.env.VCToolsInstallDir,'bin/Hostx64/x64/cl.exe'):platform==='darwin'?execFileSync('/usr/bin/xcrun',['--find','clang++'],{encoding:'utf8'}).trim():find('g++');
+  const rawCc=platform==='win32'?rawCxx:platform==='darwin'?execFileSync('/usr/bin/xcrun',['--find','clang'],{encoding:'utf8'}).trim():find('gcc');
+  const cxx=cmakeToolPath(rawCxx),cc=cmakeToolPath(rawCc);
+  appendFileSync(process.env.GITHUB_ENV,`CMAKE_GENERATOR=Ninja\nCUDAToolkit_ROOT=${cmakeToolPath(sdk)}\nCUDA_PATH=${cmakeToolPath(sdk)}\nREADER_CMAKE=${cmakeToolPath(join(cmakeDir,'cmake'+(platform==='win32'?'.exe':'')))}\nREADER_NINJA=${cmakeToolPath(join(ninjaDir,'ninja'+(platform==='win32'?'.exe':'')))}\nREADER_CXX=${cxx}\nREADER_CC=${cc}\n${platform==='darwin'?'':`READER_CUDA_COMPILER=${cmakeToolPath(join(sdk,'bin','nvcc'+(platform==='win32'?'.exe':'')))}\n`}`);
  }
  return {sdk,receipt};
 }
