@@ -117,7 +117,7 @@ if(process.argv[1] && resolve(process.argv[1])===fileURLToPath(import.meta.url))
     const configBytes=JSON.stringify(config);writeFileSync(file,configBytes,{flag:'wx',mode:0o600});
     const sourceBefore=git(core,'status','--porcelain=v1','--untracked-files=normal');assert.equal(sourceBefore,'');
     try {
-      execFileSync(process.execPath,[require.resolve('electron-builder/out/cli/cli.js'),'--linux','deb','--x64','--config',file,'-p','never'],{cwd:desktop,env:{...process.env,CSC_IDENTITY_AUTO_DISCOVERY:'false'},stdio:'inherit',timeout:300000});
+      execFileSync(process.execPath,[require.resolve('electron-builder/out/cli/cli.js'),'--linux','deb','--x64','--config',file,'-p','never'],{cwd:desktop,env:{...process.env,CSC_IDENTITY_AUTO_DISCOVERY:'false'},stdio:'inherit',timeout:15*60*1000});
       assert.equal(git(core,'status','--porcelain=v1','--untracked-files=normal'),'');
       const out=join(desktop,'release/linux-original');
       writeFileSync(join(out,'packaging-input.json'),JSON.stringify({source:process.env.SOURCE_REF,workflow,platform:'linux-x64',
