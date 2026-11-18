@@ -8,9 +8,9 @@ Public workflows, site deployment and product releases retain their independent 
 
 
 
-Use Node 24.22.0 (`.nvmrc`); website installation keeps pnpm 9.15.9 as pinned by the Pages workflow.
-Application CI uses pnpm 11.5.2. When this repository is nested under the private Hear workspace,
-install the independent site with `corepack pnpm@9.15.9 install --ignore-workspace --frozen-lockfile`.
+Use Node 24.22.0 (`.nvmrc`) and pnpm 11.5.2 (`package.json`) for the website, application CI and
+Pages deployment. When this repository is nested under the private Hear workspace, install the
+independent site with `corepack pnpm@11.5.2 install --ignore-workspace --frozen-lockfile`.
 
 ## Desktop CI
 
