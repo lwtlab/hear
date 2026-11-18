@@ -24,7 +24,7 @@ export const PINS = {
   "scripts/verify-tasks.mjs": "ed75ec8b8c609597c16f6dcbcc7ee622211e5e3f7d31869fc70e6663295b39b3",
   "scripts/hear.sh": "3d12b95c35186ea1aab6599ebd52d32b495e1c20d1b0e7d2fd28c59fc2a12574",
   "scripts/hear-check.mjs": "d80ee9e7d2c45ba5a3e341cad1a7200c251fde14a09755e797bdbd92f1157ad7",
-  "apps/hear/scripts/ci-core.sh": "50ede347998f0a379b6ead08a9e937e3b0f8be3055300e75a9cd7b314451f168",
+  "apps/hear/scripts/ci-core.sh": "b5f56b3a1f347968ca20fb4391ab038c8dcb7f04abbf21f06c11edc82e84b935",
   "hear-core/scripts/build.sh": "652c89dff330a63b09a883ea25d2d3c0c2766538d5e55394e13018517aac84a0"
 };
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
